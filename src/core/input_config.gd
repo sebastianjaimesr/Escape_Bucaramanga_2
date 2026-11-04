@@ -35,7 +35,7 @@ const REBINDABLE := [
 ## Se amplía en cada fase (interactuar, vehículo, inventario, mapa…).
 const IN_USE := [
 	"move_forward", "move_back", "move_left", "move_right",
-	"run", "jump", "crouch", "toggle_fps",
+	"run", "jump", "crouch", "interact", "toggle_fps",
 ]
 
 const JOY_BUTTONS := {

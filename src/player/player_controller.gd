@@ -51,6 +51,9 @@ var jump_buffer := 0.0
 var facing_yaw := 0.0
 var last_step_up := 0.0          ## Altura del último escalón subido (para pruebas y cámara).
 var air_max_speed := WALK_SPEED  ## En el aire se conserva el impulso, sin acelerar más.
+var cover_count := 0             ## Matorrales en los que está metido (HidingSpot).
+var energy_timer := 0.0          ## Segundos de resistencia infinita (granizado).
+var focused: Interactable        ## Lo que se puede usar con Interactuar ahora mismo.
 
 var body_shape: CapsuleShape3D
 var visual: PrototypeBody
@@ -60,6 +63,9 @@ var _collision: CollisionShape3D
 var _regen_delay := 0.0
 var _was_on_floor := true
 var _air_peak_speed := 0.0
+var _interactor: Area3D
+var _was_hidden := false
+var _last_prompt := ""
 
 
 func _ready() -> void:
@@ -86,6 +92,18 @@ func _ready() -> void:
 	state_machine.name = "StateMachine"
 	add_child(state_machine)
 	state_machine.setup(self)
+	_interactor = Area3D.new()
+	_interactor.name = "Interactor"
+	_interactor.collision_layer = 0
+	_interactor.collision_mask = PhysicsLayers.INTERACTABLES
+	_interactor.monitorable = false
+	var reach := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.6
+	reach.shape = sphere
+	reach.position.y = 0.9
+	_interactor.add_child(reach)
+	add_child(_interactor)
 	facing_yaw = rotation.y
 	rotation.y = 0.0
 
@@ -118,6 +136,53 @@ func _physics_process(delta: float) -> void:
 		_air_peak_speed = 0.0
 	_was_on_floor = on_floor
 	visual.update_visual(self, delta)
+	_update_interaction()
+	var hidden := is_hidden()
+	if hidden != _was_hidden:
+		_was_hidden = hidden
+		EventBus.hidden_changed.emit(hidden)
+
+
+# ---------------------------------------------------------------------------
+# Interacción y escondites
+# ---------------------------------------------------------------------------
+## Escondido: agachado dentro de un matorral.
+func is_hidden() -> bool:
+	return cover_count > 0 and crouching
+
+
+func in_cover() -> bool:
+	return cover_count > 0
+
+
+## Elige el Interactable más cercano que se pueda usar y responde a la tecla E.
+func _update_interaction() -> void:
+	var best: Interactable = null
+	var best_d := INF
+	if input_enabled:
+		for area in _interactor.get_overlapping_areas():
+			var it := area as Interactable
+			if it == null or not it.can_interact(self):
+				continue
+			var d := global_position.distance_squared_to(it.global_position)
+			if d < best_d:
+				best_d = d
+				best = it
+	focused = best
+	var text := best.get_prompt() if best != null else ""
+	if text != _last_prompt:
+		_last_prompt = text
+		EventBus.interaction_prompt_changed.emit(text)
+	if best != null and Input.is_action_just_pressed("interact"):
+		best.interact(self)
+
+
+## Granizado: llena la resistencia y la deja infinita un rato.
+func drink_granizado(seconds: float) -> void:
+	stamina = MAX_STAMINA
+	exhausted = false
+	energy_timer = seconds
+	EventBus.stamina_changed.emit(stamina, MAX_STAMINA, exhausted)
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +290,12 @@ func is_running() -> bool:
 
 func _update_stamina(delta: float) -> void:
 	var before := stamina
-	if is_running() and horizontal_speed() > WALK_SPEED + 0.2:
+	if energy_timer > 0.0:
+		energy_timer = maxf(0.0, energy_timer - delta)
+	if energy_timer > 0.0:
+		stamina = MAX_STAMINA
+		exhausted = false
+	elif is_running() and horizontal_speed() > WALK_SPEED + 0.2:
 		stamina = maxf(0.0, stamina - STAMINA_DRAIN * delta)
 		_regen_delay = STAMINA_REGEN_DELAY
 		if stamina <= 0.0:

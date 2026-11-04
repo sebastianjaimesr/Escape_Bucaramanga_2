@@ -22,6 +22,7 @@ const PROFILES := {
 		"ssao": false,
 		"ssr": false,
 		"volumetric_fog": false,
+		"ssil": false,
 		"glow": false,
 	},
 	"medio": {
@@ -35,6 +36,7 @@ const PROFILES := {
 		"ssao": false,
 		"ssr": false,
 		"volumetric_fog": false,
+		"ssil": false,
 		"glow": true,
 	},
 	"alto": {
@@ -48,6 +50,7 @@ const PROFILES := {
 		"ssao": true,
 		"ssr": true,
 		"volumetric_fog": true,
+		"ssil": true,
 		"glow": true,
 	},
 }
@@ -93,6 +96,7 @@ static func apply(profile_id: String, viewport: Viewport, env: Environment,
 		env.ssao_enabled = fp and p["ssao"]
 		env.ssr_enabled = fp and p["ssr"]
 		env.volumetric_fog_enabled = fp and p["volumetric_fog"]
+		env.ssil_enabled = fp and p["ssil"]
 		env.glow_enabled = p["glow"]
 		# La niebla por distancia se ajusta para ocultar el límite de dibujo.
 		env.fog_depth_end = p["draw_distance"]
