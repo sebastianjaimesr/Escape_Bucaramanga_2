@@ -20,6 +20,9 @@ Los lugares están inspirados en Bucaramanga; no son reproducciones exactas.
 
 Todavía **no** están el modelo definitivo de Sebastián, los compañeros que te siguen, la patrulla en vehículo, los vehículos conducibles, la ciudad de Bucaramanga ni el audio: llegan en las fases siguientes.
 
+![Cruce con luz de atardecer](DOCUMENTACION/capturas/v0.3/pc_alto_cruce.jpg)
+![Policía y minimapa](DOCUMENTACION/capturas/v0.3/pc_alto_hud_policia.jpg)
+
 ## Ejecutar
 
 Requiere Godot **4.7** (versión estándar). Ver [DOCUMENTACION/INSTALACION.md](DOCUMENTACION/INSTALACION.md).
