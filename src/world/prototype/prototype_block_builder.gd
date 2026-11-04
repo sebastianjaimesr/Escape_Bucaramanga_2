@@ -21,6 +21,8 @@ var root: Node3D
 var points: Dictionary = {}       ## Puntos con nombre (aparición, pruebas).
 var _rng := RandomNumberGenerator.new()
 var _windows: Array[Transform3D] = []
+var _lit_windows: Array[Transform3D] = []
+var _batches: Dictionary = {}     ## Grupo -> {"mesh": Mesh, "xforms": Array[Transform3D]}
 
 
 func _init(parent: Node3D) -> void:
@@ -39,7 +41,9 @@ func build() -> Dictionary:
 	_build_test_plaza()                # suroeste
 	_build_perimeter()
 	_build_street_props()
+	PrototypeProps.new(self).build()
 	_build_windows()
+	_flush_batches()
 	_build_bounds()
 	points["spawn"] = Vector3(-8.0, CURB_HEIGHT, 9.0)
 	points["spawn_yaw"] = -PI * 0.25
@@ -119,50 +123,115 @@ func _building(center: Vector3, footprint: Vector3, floors: int, facing: Vector3
 	var floor_h := 3.0
 	var h := 3.6 + (floors - 1) * floor_h
 	var base := CURB_HEIGHT
-	var mat := "facade_%d" % _rng.randi_range(0, MaterialLibrary.FACADE_COLORS.size() - 1)
+	# Uno de cada cuatro edificios es de ladrillo a la vista, muy común en Bucaramanga.
+	var brick := _rng.randf() < 0.25
+	var mat := "brick" if brick else "facade_%d" % _rng.randi_range(0, MaterialLibrary.FACADE_COLORS.size() - 1)
 	add_box(Vector3(footprint.x, h, footprint.z), Vector3(center.x, base + h * 0.5, center.z), mat)
-	# Cornisa y alero.
+	# Cornisa, antepecho de la terraza y zócalo oscuro.
 	add_box(Vector3(footprint.x + 0.3, 0.25, footprint.z + 0.3), Vector3(center.x, base + h + 0.12, center.z), "concrete", false)
+	add_box(Vector3(footprint.x - 0.6, 0.02, footprint.z - 0.6), Vector3(center.x, base + h + 0.255, center.z), "roof", false)
+	add_box(Vector3(footprint.x + 0.04, 0.45, footprint.z + 0.04), Vector3(center.x, base + 0.225, center.z), "concrete_dark", false)
+	_rooftop(Vector3(center.x, base + h + 0.25, center.z), footprint)
 	# Local en la planta baja: vitrina oscura y toldo, sobre la fachada que da a la calle.
 	var along := Vector3(absf(facing.z), 0, absf(facing.x))   # Eje a lo largo de la fachada.
 	var width := footprint.x if along.x > 0.0 else footprint.z
 	var half_depth := (footprint.z if along.x > 0.0 else footprint.x) * 0.5
 	var face := center + facing * half_depth
+	var basis := Basis.looking_at(facing, Vector3.UP)
 	var shop_w := width * 0.8
 	var shop := Vector3(shop_w, 2.6, 0.08) if along.x > 0.0 else Vector3(0.08, 2.6, shop_w)
 	add_box(shop, face + facing * 0.04 + Vector3(0, base + 1.35, 0), "storefront", false)
+	# Interior iluminado detrás del vidrio (se ve a través de la vitrina).
+	var inner := Vector3(shop_w - 0.4, 2.2, 0.02) if along.x > 0.0 else Vector3(0.02, 2.2, shop_w - 0.4)
+	add_box(inner, face + facing * 0.085 + Vector3(0, base + 1.3, 0), "shop_interior", false)
+	var pane := Vector3(shop_w, 2.5, 0.02) if along.x > 0.0 else Vector3(0.02, 2.5, shop_w)
+	add_box(pane, face + facing * 0.13 + Vector3(0, base + 1.35, 0), "shop_glass", false)
+	# Divisiones de la vitrina (montantes) y puerta en el centro.
+	var mullions := maxi(2, int(shop_w / 1.8))
+	for m in range(1, mullions):
+		var t := float(m) / mullions - 0.5
+		add_instance("mullion", _box_mesh(Vector3(0.08, 2.5, 0.08)), "rail",
+				Transform3D(basis, face + along * (t * shop_w) + facing * 0.12 + Vector3(0, base + 1.35, 0)))
+	# Marco de la vitrina y columnas laterales.
+	for side: float in [-1.0, 1.0]:
+		var col := Vector3(0.25, 2.8, 0.18) if along.x > 0.0 else Vector3(0.18, 2.8, 0.25)
+		add_box(col, face + along * (side * shop_w * 0.5) + facing * 0.09 + Vector3(0, base + 1.4, 0), "concrete", false)
+	var awning_mat: String = ["awning", "awning_green", "awning_blue", "awning_yellow"][_rng.randi() % 4]
 	if _rng.randf() < 0.7:
-		var awning := Vector3(shop_w, 0.08, 1.2) if along.x > 0.0 else Vector3(1.2, 0.08, shop_w)
-		add_box(awning, face + facing * 0.6 + Vector3(0, base + 2.85, 0), "awning", false)
-	# Ventanas de los pisos superiores (se dibujan todas juntas con MultiMesh).
+		var awning := add_box(Vector3(shop_w, 0.08, 1.3), Vector3.ZERO, awning_mat, false)
+		awning.basis = basis * Basis(Vector3.RIGHT, deg_to_rad(-14.0))
+		awning.position = face + facing * 0.65 + Vector3(0, base + 2.9, 0)
+	# Letrero con el nombre del local.
+	var sign_size := Vector3(minf(shop_w, 5.5), 0.6, 0.12) if along.x > 0.0 else Vector3(0.12, 0.6, minf(shop_w, 5.5))
+	var sign_pos := face + facing * 0.12 + Vector3(0, base + 3.25, 0)
+	add_box(sign_size, sign_pos, "sign_%d" % _rng.randi_range(0, MaterialLibrary.SIGN_COLORS.size() - 1), false)
+	var label := Label3D.new()
+	label.text = SHOP_NAMES[_rng.randi() % SHOP_NAMES.size()]
+	label.font_size = 64
+	label.pixel_size = 0.0045
+	label.outline_size = 10
+	label.modulate = Color(1, 1, 0.96)
+	label.outline_modulate = Color(0, 0, 0, 0.6)
+	label.basis = basis.rotated(Vector3.UP, PI)
+	label.position = sign_pos + facing * 0.075
+	label.width = sign_size.x if along.x > 0.0 else sign_size.z
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	root.add_child(label)
+	# Pisos superiores: franja entre pisos, ventanas con marco y alféizar, balcones.
+	var balconies := _rng.randf() < 0.45
 	for f in range(1, floors):
 		var y := base + 3.6 + (f - 1) * floor_h + 1.4
+		var band := Vector3(width + 0.06, 0.18, 0.1) if along.x > 0.0 else Vector3(0.1, 0.18, width + 0.06)
+		add_instance("band_%s" % ("x" if along.x > 0.0 else "z"), _box_mesh(band), "concrete",
+				Transform3D(Basis.IDENTITY, face + facing * 0.05 + Vector3(0, y - 1.48, 0)))
 		var n := int(floor(width / 2.6))
 		for i in n:
 			var t := (i + 0.5) / n - 0.5
-			var p := face + along * (t * width) + facing * 0.04 + Vector3(0, y, 0)
-			var basis := Basis.looking_at(facing, Vector3.UP)
-			_windows.append(Transform3D(basis, p))
+			var p := face + along * (t * width) + Vector3(0, y, 0)
+			add_instance("frame", _box_mesh(Vector3(1.42, 1.72, 0.1)), "window_frame",
+					Transform3D(basis, p + facing * 0.03))
+			add_instance("sill", _box_mesh(Vector3(1.6, 0.08, 0.22)), "concrete",
+					Transform3D(basis, p + facing * 0.1 + Vector3(0, -0.9, 0)))
+			var xf := Transform3D(basis, p + facing * 0.085)
+			if _rng.randf() < 0.22:
+				_lit_windows.append(xf)
+			else:
+				_windows.append(xf)
+			if balconies and f % 2 == 1:
+				add_instance("balcony", _box_mesh(Vector3(1.9, 0.12, 0.8)), "concrete",
+						Transform3D(basis, p + facing * 0.45 + Vector3(0, -0.92, 0)))
+				# Baranda: pasamanos y barrotes.
+				add_instance("balcony_rail", _box_mesh(Vector3(1.9, 0.05, 0.05)), "rail",
+						Transform3D(basis, p + facing * 0.83 + Vector3(0, 0.0, 0)))
+				for k in 7:
+					var bx := (k / 6.0 - 0.5) * 1.84
+					add_instance("balcony_bar", _box_mesh(Vector3(0.025, 0.86, 0.025)), "rail",
+							Transform3D(basis, p + facing * 0.83 + along * bx + Vector3(0, -0.43, 0)))
 	points["building_" + id] = {"face": face + Vector3(0, base, 0), "facing": facing}
+	if not points.has("footprints"):
+		points["footprints"] = []
+	(points["footprints"] as Array).append(Rect2(center.x - footprint.x * 0.5, center.z - footprint.z * 0.5, footprint.x, footprint.z))
+
+
+## Tanque de agua, aire acondicionado y antena en algunas terrazas.
+func _rooftop(top: Vector3, footprint: Vector3) -> void:
+	var r := _rng.randf()
+	if r < 0.45:
+		var p := top + Vector3(_rng.randf_range(-0.3, 0.3) * footprint.x, 0.0, _rng.randf_range(-0.3, 0.3) * footprint.z)
+		add_instance("tank", _cyl_mesh(0.55, 1.1), "plastic_gray", Transform3D(Basis.IDENTITY, p + Vector3(0, 0.75, 0)))
+		add_instance("tank_stand", _box_mesh(Vector3(1.2, 0.2, 1.2)), "metal", Transform3D(Basis.IDENTITY, p + Vector3(0, 0.1, 0)))
+	if r > 0.3:
+		var p2 := top + Vector3(_rng.randf_range(-0.35, 0.35) * footprint.x, 0.25, _rng.randf_range(-0.35, 0.35) * footprint.z)
+		add_instance("ac", _box_mesh(Vector3(0.9, 0.5, 0.6)), "plastic_gray", Transform3D(Basis.IDENTITY, p2))
 
 
 func _build_windows() -> void:
-	if _windows.is_empty():
-		return
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(1.2, 1.5, 0.08)
-	mesh.material = MaterialLibrary.get_material("glass")
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = _windows.size()
-	for i in _windows.size():
-		mm.set_instance_transform(i, _windows[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "Windows"
-	mmi.multimesh = mm
-	root.add_child(mmi)
-	points["window_count"] = _windows.size()
+	var glass := _box_mesh(Vector3(1.2, 1.5, 0.02))
+	for xf in _windows:
+		add_instance("windows", glass, "glass", xf)
+	for xf in _lit_windows:
+		add_instance("windows_lit", glass, "glass_lit", xf)
+	points["window_count"] = _windows.size() + _lit_windows.size()
 
 
 ## Fila de edificios en los bordes de la cuadra suroeste para que no se vea el
@@ -252,15 +321,31 @@ func _build_street_props() -> void:
 
 func _lamp(pos: Vector3) -> void:
 	add_cylinder(0.07, 5.5, pos + Vector3(0, 2.75, 0), "metal", true)
-	add_box(Vector3(0.5, 0.15, 0.25), pos + Vector3(0, 5.5, 0), "metal", false)
+	add_cylinder(0.12, 0.6, pos + Vector3(0, 0.3, 0), "metal", false)
+	# El brazo apunta hacia la calle más cercana.
+	var to_street := Vector3(-signf(pos.x), 0, 0) if absf(pos.x) < absf(pos.z) else Vector3(0, 0, -signf(pos.z))
+	if absf(pos.x) < 0.01 or absf(pos.z) < 0.01:
+		to_street = Vector3.FORWARD
+	var arm := add_box(Vector3(0.06, 0.06, 1.2), Vector3.ZERO, "metal", false)
+	arm.basis = Basis.looking_at(to_street, Vector3.UP)
+	arm.position = pos + Vector3(0, 5.45, 0) + to_street * 0.55
+	add_box(Vector3(0.45, 0.12, 0.3), pos + Vector3(0, 5.4, 0) + to_street * 1.1, "metal", false)
+	add_box(Vector3(0.35, 0.04, 0.2), pos + Vector3(0, 5.33, 0) + to_street * 1.1, "bulb", false)
 
 
 func _tree(pos: Vector3) -> void:
 	var trunk_h := _rng.randf_range(2.4, 3.4)
 	add_cylinder(0.16, trunk_h, pos + Vector3(0, trunk_h * 0.5, 0), "bark", true)
+	add_cylinder(0.5, 0.06, pos + Vector3(0, 0.03, 0), "soil", false)   # Alcorque.
 	var crown := _rng.randf_range(1.5, 2.3)
-	add_sphere(crown, pos + Vector3(0, trunk_h + crown * 0.6, 0), "leaves")
-	add_sphere(crown * 0.7, pos + Vector3(crown * 0.5, trunk_h + crown * 0.2, crown * 0.3), "leaves")
+	# Algunos árboles florecidos (ocobos), el resto en dos tonos de verde.
+	var leaves := "leaves_flower" if _rng.randf() < 0.25 else "leaves"
+	add_sphere(crown, pos + Vector3(0, trunk_h + crown * 0.6, 0), leaves)
+	for i in 4:
+		var a := i * TAU / 4.0 + _rng.randf_range(-0.4, 0.4)
+		var r := crown * _rng.randf_range(0.5, 0.75)
+		var off := Vector3(cos(a) * crown * 0.6, _rng.randf_range(-0.1, 0.5) * crown, sin(a) * crown * 0.6)
+		add_sphere(r, pos + Vector3(0, trunk_h + crown * 0.5, 0) + off, leaves if i % 2 == 0 else "leaves_dark")
 
 
 func _bench(pos: Vector3) -> void:
@@ -321,6 +406,49 @@ func add_sphere(radius: float, pos: Vector3, material: String) -> Node3D:
 	return _add(mesh, null, pos, material)
 
 
+## Agrega una instancia a un grupo dibujado con un solo MultiMesh (ventanas,
+## marcos, balcones, tanques…). Todas las instancias de un grupo comparten malla.
+func add_instance(group: String, mesh: Mesh, material: String, xform: Transform3D) -> void:
+	if not _batches.has(group):
+		_batches[group] = {"mesh": mesh, "material": material, "xforms": []}
+	(_batches[group]["xforms"] as Array).append(xform)
+
+
+func _flush_batches() -> void:
+	var total := 0
+	for group: String in _batches:
+		var b: Dictionary = _batches[group]
+		var xforms: Array = b["xforms"]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = b["mesh"]
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Batch_" + group
+		mmi.multimesh = mm
+		mmi.material_override = MaterialLibrary.get_material(b["material"])
+		root.add_child(mmi)
+		total += xforms.size()
+	points["instanced_count"] = total
+
+
+func _box_mesh(size: Vector3) -> BoxMesh:
+	var m := BoxMesh.new()
+	m.size = size
+	return m
+
+
+func _cyl_mesh(radius: float, height: float) -> CylinderMesh:
+	var m := CylinderMesh.new()
+	m.top_radius = radius
+	m.bottom_radius = radius
+	m.height = height
+	m.radial_segments = 12
+	return m
+
+
 func _add(mesh: Mesh, shape: Shape3D, pos: Vector3, material: String) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -339,6 +467,15 @@ func _add(mesh: Mesh, shape: Shape3D, pos: Vector3, material: String) -> Node3D:
 	body.add_child(mi)
 	root.add_child(body)
 	return body
+
+
+const SHOP_NAMES := [
+	"Tienda Doña Rosa", "Panadería El Santandereano", "Droguería La Novena",
+	"Granizados El Parque", "Miscelánea Cabecera", "Papelería El Estudiante",
+	"Arepas La 33", "Cerrajería Rápida", "Ferretería San Pío", "Café La Ceiba",
+	"Ropa y Calzado Sotomayor", "Restaurante El Paisa", "Peluquería Estilo",
+	"Frutería Girón", "Cacharrería La Esquina", "Bocadillos Veleños",
+]
 
 
 static func _qname(q: Vector2) -> String:

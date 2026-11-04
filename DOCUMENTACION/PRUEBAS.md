@@ -3,7 +3,7 @@
 ## Cómo ejecutarlas
 
 ```bash
-# Juego 3D: 24 pruebas de integración
+# Juego 3D: 39 pruebas de integración
 godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
 
 # Capturas de pantalla (necesita ventana; no funciona con --headless)
@@ -15,6 +15,30 @@ godot --headless --path clasico-2d --fixed-fps 60 res://tests/bot_runner.tscn
 ```
 
 `test_runner` sale con código 0 si todo pasa y 1 si algo falla. Usa su propio archivo de configuración (`user://test_settings.cfg`) y lo borra al terminar: no toca la configuración del jugador.
+
+## Resultados de la versión 0.3.0 (4 de noviembre de 2026)
+
+Entorno: Godot 4.7.2 estable, Linux, modo headless, física a 60 Hz fija. **39 OK, 0 fallos** (tres corridas seguidas iguales). Las 24 pruebas de la Fase 2 siguen pasando (se ejecutan con la policía apagada para que no interfiera) y se agregaron 15:
+
+| Prueba | Qué comprueba | Resultado |
+|---|---|---|
+| test_navmesh_and_paths | La navmesh se hornea y hay ruta desde el inicio a las pruebas de la calle, los amigos, el vendedor y las rutas de patrulla | OK |
+| test_police_patrols | Un policía recorre su ruta (cruza la calle y sube el bordillo) | OK |
+| test_police_sees_player_in_open | A 11 m de frente y sin obstáculos lo ve y lo persigue | OK |
+| test_police_blind_through_buildings | Con un edificio en medio no lo detecta | OK |
+| test_police_does_not_see_behind | Detrás y quieto no lo ve | OK |
+| test_crouching_reduces_view | Agachado a 12 m no lo ve | OK |
+| test_police_catches_player | Lo atrapa, bloquea los controles, muestra la pantalla, lo devuelve con los amigos y la policía vuelve a patrullar tras 3 s | OK |
+| test_hidden_player_is_lost | En persecución, se esconde en un matorral: la policía busca, se rinde y vuelve a su ruta sin atraparlo | OK |
+| test_radio_calls_nearby_officer | Al empezar una persecución, otro policía cercano recibe el aviso | OK |
+| test_hiding_requires_crouch | En el matorral solo queda escondido agachado | OK |
+| test_evidence_pickup | Recoger una prueba con E; la misión y el HUD la cuentan | OK |
+| test_vendor_granizado | El granizado llena la resistencia y correr no la gasta durante el efecto | OK |
+| test_friends_complete_mission | Sin las pruebas no termina; con las 5 se gana y sale la pantalla de victoria | OK |
+| test_civilians_walk | Los peatones caminan por la manzana | OK |
+| test_traffic_lights_cycle | Los semáforos de los dos ejes están coordinados (verde/rojo, luego amarillo) | OK |
+
+Construir la manzana (texturas procedurales, edificios, utilería, navmesh, personajes) y avanzar 30 cuadros toma ≈ 0,9 s en este entorno (CPU, sin GPU).
 
 ## Resultados de la Fase 2 (3 de noviembre de 2026)
 
@@ -63,6 +87,8 @@ Chromium sin pantalla (Playwright) con WebGL 2 por software (SwiftShader), sirvi
 | Errores en la consola | Ninguno (se corrigieron dos: una función de teclado no soportada en web y FXAA en Compatibilidad) |
 
 ## Capturas
+
+`capturas/v0.3/`: `pc_alto_*` con Forward+ (Vulkan por software, perfil Alto) y `compat_bajo_*` con el renderizador de Compatibilidad (el mismo de la versión web) en perfil Bajo, generadas con `tests/screenshots.tscn`. La versión web exportada no se volvió a probar en el navegador en esta versión.
 
 `capturas/fase2/`: `pc_alto_*` con Forward+ (Vulkan por software, perfil Alto) y `web_*` con la exportación web en Chromium (perfil Bajo).
 

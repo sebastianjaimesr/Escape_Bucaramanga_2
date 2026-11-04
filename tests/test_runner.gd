@@ -50,6 +50,22 @@ func _ready() -> void:
 		"test_quality_profiles_apply",
 		"test_scene_loader_missing_scene",
 		"test_fall_reset",
+		# Policía, interacción y misión
+		"test_navmesh_and_paths",
+		"test_police_patrols",
+		"test_police_sees_player_in_open",
+		"test_police_blind_through_buildings",
+		"test_police_does_not_see_behind",
+		"test_crouching_reduces_view",
+		"test_police_catches_player",
+		"test_hidden_player_is_lost",
+		"test_radio_calls_nearby_officer",
+		"test_hiding_requires_crouch",
+		"test_evidence_pickup",
+		"test_vendor_granizado",
+		"test_friends_complete_mission",
+		"test_civilians_walk",
+		"test_traffic_lights_cycle",
 	]:
 		await _run(test)
 	_remove_test_settings()
@@ -95,8 +111,10 @@ func _remove_test_settings() -> void:
 			DirAccess.remove_absolute(TEST_SETTINGS + suffix)
 
 
-func spawn_world() -> void:
+## Las pruebas de movimiento apagan la policía para que no las interrumpa.
+func spawn_world(police: bool = false) -> void:
 	world = (load(WORLD_SCENE) as PackedScene).instantiate()
+	world.police_enabled = police
 	add_child(world)
 	player = world.player
 	await frames(30)
@@ -213,7 +231,9 @@ func test_settings_roundtrip_and_corrupt_file() -> void:
 # Mundo y movimiento
 # ---------------------------------------------------------------------------
 func test_world_builds() -> void:
+	var t0 := Time.get_ticks_msec()
 	await spawn_world()
+	print("        (mundo construido y 30 cuadros en %d ms)" % (Time.get_ticks_msec() - t0))
 	check(world.points.has("spawn"), "Hay punto de aparición")
 	check(int(world.points.get("window_count", 0)) > 100, "Ventanas con MultiMesh (%s)" % world.points.get("window_count"))
 	check(world.sun.shadow_enabled, "El sol proyecta sombras")
@@ -474,3 +494,230 @@ func _first_building(prefix: String) -> String:
 			return key
 	push_error("No hay edificio %s" % prefix)
 	return ""
+
+
+# ---------------------------------------------------------------------------
+# Policía, interacción y misión
+# ---------------------------------------------------------------------------
+## Mundo con policía; espera el tiempo de gracia inicial, apaga a los demás
+## policías y deja al indicado quieto en `pos` mirando hacia `yaw`.
+func isolate_officer(index: int, pos: Vector3, yaw: float) -> PoliceOfficer:
+	await spawn_world(true)
+	await seconds(EscapeMission.GRACE_SECONDS + 0.2)
+	for o in world.mission.officers:
+		o.active = false
+	var officer: PoliceOfficer = world.mission.officers[index]
+	officer.route = PackedVector3Array([pos])
+	officer.reset_to(pos)
+	officer.facing_yaw = yaw
+	officer.active = true
+	return officer
+
+
+func wait_for(cond: Callable, timeout: float) -> bool:
+	var n := int(timeout * Engine.physics_ticks_per_second)
+	for i in n:
+		if cond.call():
+			return true
+		await get_tree().physics_frame
+	return cond.call()
+
+
+func crouch_in_place() -> void:
+	player.state_machine.change_state(&"Crouch")
+	await frames(3)
+
+
+func test_navmesh_and_paths() -> void:
+	await spawn_world(true)
+	var nav := world.navigation.navigation_mesh
+	check(nav.get_polygon_count() > 50, "La navmesh tiene polígonos (%d)" % nav.get_polygon_count())
+	var map := world.get_world_3d().navigation_map
+	var from: Vector3 = world.points["spawn"]
+	for target: Vector3 in [Vector3(52.0, 0.15, 6.2), Vector3(-6.2, 0.15, -52.0), world.points["meeting_point"],
+			world.points["vendor"], Vector3(42, 0.15, -6.0)]:
+		var path := NavigationServer3D.map_get_path(map, from, target, true)
+		check(path.size() > 1, "Hay ruta hasta %s" % target)
+		if path.size() > 1:
+			check(path[path.size() - 1].distance_to(target) < 1.5, "La ruta llega a %s (termina en %s)" % [target, path[path.size() - 1]])
+
+
+func test_police_patrols() -> void:
+	await spawn_world(true)
+	player.cover_count = 100   # Invisible para la policía durante esta prueba.
+	await crouch_in_place()
+	await seconds(EscapeMission.GRACE_SECONDS + 0.2)
+	var officer: PoliceOfficer = world.mission.officers[0]
+	var start := officer.global_position
+	await seconds(26.0)
+	check(officer.state == PoliceOfficer.State.PATROL, "Sigue patrullando (%s)" % officer.state_name())
+	check(flat(officer.global_position - start).length() > 3.0, "Se movió por su ruta")
+	check(officer.route_index >= 2, "Llegó al siguiente punto de la ruta (índice %d)" % officer.route_index)
+	check(officer.is_on_floor(), "Camina sobre el suelo (subió el bordillo)")
+
+
+func test_police_sees_player_in_open() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, -6.0), PI * 0.5)   # Mira al oeste.
+	await place(Vector3(19, 0.15, -6.0), 0.0)
+	var ok := await wait_for(func() -> bool: return officer.state == PoliceOfficer.State.CHASE or world.mission.caught_count > 0, 3.0)
+	check(ok, "Lo ve a 11 m en campo abierto y lo persigue (estado %s)" % officer.state_name())
+
+
+func test_police_blind_through_buildings() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, -6.0), 0.0)        # Mira al norte, hacia los edificios.
+	await place(Vector3(30, 0.15, -22.5), 0.0)
+	check(not officer.can_see_player(), "Un edificio tapa la vista")
+	await seconds(3.0)
+	check(officer.state == PoliceOfficer.State.PATROL and officer.alert == 0.0,
+			"No lo detecta detrás del edificio (%s, alerta %.2f)" % [officer.state_name(), officer.alert])
+
+
+func test_police_does_not_see_behind() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, -6.0), -PI * 0.5)  # Mira al este.
+	await place(Vector3(22, 0.15, -6.0), 0.0)
+	await seconds(3.0)
+	check(officer.state == PoliceOfficer.State.PATROL, "No ve a quien está detrás y quieto (%s)" % officer.state_name())
+
+
+func test_crouching_reduces_view() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, -6.0), PI * 0.5)
+	await place(Vector3(18, 0.15, -6.0), 0.0)
+	await crouch_in_place()
+	await seconds(3.0)
+	check(officer.state == PoliceOfficer.State.PATROL, "Agachado a 12 m no lo ve (%s)" % officer.state_name())
+
+
+func test_police_catches_player() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, -6.0), PI * 0.5)
+	await place(Vector3(25, 0.15, -6.0), 0.0)
+	var caught := await wait_for(func() -> bool: return world.mission.caught_count == 1, 6.0)
+	check(caught, "Lo atrapa si se queda quieto")
+	check(not player.input_enabled, "Los controles se bloquean mientras se muestra la pantalla")
+	check(world.overlay.is_showing(), "Muestra «¡Te atraparon!»")
+	await seconds(MissionOverlay.CAUGHT_SECONDS + 0.5)
+	check(player.input_enabled, "Recupera los controles")
+	check(flat(player.global_position - world.points["meeting_point"]).length() < 5.0, "Vuelve con los amigos")
+	check(not officer.active, "La policía espera unos segundos antes de volver a buscar")
+	await seconds(EscapeMission.GRACE_SECONDS + 0.2)
+	check(officer.active and officer.state == PoliceOfficer.State.PATROL, "La policía vuelve a patrullar")
+
+
+func test_hidden_player_is_lost() -> void:
+	var officer := await isolate_officer(0, Vector3(34, 0.15, -6.0), PI * 0.5)
+	await place(Vector3(24, 0.15, -6.0), 0.0)
+	var chasing := await wait_for(func() -> bool: return officer.state == PoliceOfficer.State.CHASE, 3.0)
+	check(chasing, "Empieza la persecución")
+	# Se mete al matorral de la acera sur y se agacha.
+	player.teleport(Vector3(24, 0.2, 6.7), 0.0)
+	await crouch_in_place()
+	await frames(5)
+	check(player.is_hidden(), "Está escondido")
+	var searched := await wait_for(func() -> bool: return officer.state == PoliceOfficer.State.SEARCH, 10.0)
+	check(searched, "La policía busca donde lo perdió (%s)" % officer.state_name())
+	var gave_up := await wait_for(func() -> bool: return officer.state in [PoliceOfficer.State.RETURN, PoliceOfficer.State.PATROL], PoliceOfficer.SEARCH_TIME + 3.0)
+	check(gave_up, "Deja de buscar y vuelve a su ruta (%s)" % officer.state_name())
+	check(world.mission.caught_count == 0, "Nunca lo atrapó estando escondido")
+
+
+func test_radio_calls_nearby_officer() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, -6.0), PI * 0.5)
+	var other: PoliceOfficer = world.mission.officers[1]
+	other.route = PackedVector3Array([Vector3(6, 0.15, -25)])
+	other.reset_to(Vector3(6, 0.15, -25))
+	other.facing_yaw = 0.0
+	other.active = true
+	await place(Vector3(19, 0.15, -6.0), 0.0)
+	await wait_for(func() -> bool: return officer.state == PoliceOfficer.State.CHASE, 3.0)
+	await frames(2)
+	check(other.state in [PoliceOfficer.State.SEARCH, PoliceOfficer.State.SUSPICIOUS, PoliceOfficer.State.CHASE],
+			"El otro policía recibe el aviso por radio (%s)" % other.state_name())
+
+
+func test_hiding_requires_crouch() -> void:
+	await spawn_world(false)
+	await place(Vector3(24, 0.15, 6.7), 0.0)
+	check(player.in_cover(), "Está dentro del matorral")
+	check(not player.is_hidden(), "De pie no está escondido")
+	await crouch_in_place()
+	check(player.is_hidden(), "Agachado sí está escondido")
+
+
+func test_evidence_pickup() -> void:
+	await spawn_world(false)
+	var item: EvidencePickup = null
+	for e in world.mission.evidence:
+		if e.id == "celular":
+			item = e
+	await place(item.global_position + Vector3(-1.0, 0.0, 0.0), 0.0)
+	check(player.focused == item.interactable, "La prueba queda resaltada para recoger")
+	await tap("interact")
+	await frames(2)
+	check(item.collected, "Se recogió")
+	check(world.mission.collected == ["celular"], "La misión la cuenta")
+	check(world.hud.objective.text.contains("1/5"), "El HUD muestra 1/5 (%s)" % world.hud.objective.text)
+
+
+func test_vendor_granizado() -> void:
+	await spawn_world(false)
+	await place(world.points["vendor"] + Vector3(1.2, 0.0, 0.0), 0.0)
+	player.stamina = 5.0
+	player.exhausted = true
+	check(player.focused == world.mission.vendor.interactable, "Puede hablarle al vendedor")
+	await tap("interact")
+	await frames(2)
+	check(is_equal_approx(player.stamina, PlayerController.MAX_STAMINA), "El granizado llena la resistencia")
+	check(player.energy_timer > 20.0, "Da resistencia sin límite un rato")
+	await place(Vector3(-40, 0.15, 12), 0.0)
+	await hold(["move_forward", "run"], 3.0)
+	check(player.stamina > PlayerController.MAX_STAMINA - 1.0, "Correr no gasta resistencia con el granizado")
+
+
+func test_friends_complete_mission() -> void:
+	await spawn_world(false)
+	await place(world.points["meeting_point"] + Vector3(2.0, 0.0, 0.0), 0.0)
+	check(player.focused != null and player.focused.get_prompt() == "Hablar con tus amigos", "Puede hablar con los amigos")
+	await tap("interact")
+	await frames(2)
+	check(not world.mission.finished, "Sin las pruebas la misión no termina")
+	for e in world.mission.evidence:
+		e.interactable.interact(player)
+	check(world.mission.collected.size() == world.mission.total, "Todas las pruebas recogidas")
+	await frames(2)
+	await tap("interact")
+	await frames(2)
+	check(world.mission.finished, "Al entregar las pruebas se gana")
+	check(world.overlay.is_showing(), "Pantalla de victoria")
+
+
+func test_civilians_walk() -> void:
+	await spawn_world(false)
+	var walkers: Array = []
+	for c in get_tree().get_nodes_in_group("civilian"):
+		if not (c as Civilian).wander_points.is_empty():
+			walkers.append([c, (c as Node3D).global_position])
+	check(walkers.size() >= 3, "Hay peatones (%d)" % walkers.size())
+	await seconds(10.0)
+	var moved := 0
+	for w: Array in walkers:
+		if flat((w[0] as Node3D).global_position - w[1]).length() > 2.0:
+			moved += 1
+	check(moved >= walkers.size() - 1, "Los peatones caminan (%d de %d)" % [moved, walkers.size()])
+
+
+func test_traffic_lights_cycle() -> void:
+	await spawn_world(false)
+	var lights: Array = []
+	for n in world.find_children("*", "TrafficLight", true, false):
+		lights.append(n)
+	check(lights.size() == 4, "Hay 4 semáforos (%d)" % lights.size())
+	var ns: TrafficLight = null
+	var ew: TrafficLight = null
+	for t: TrafficLight in lights:
+		if t.axis == "ns":
+			ns = t
+		else:
+			ew = t
+	check(ns.current_state() == "green" and ew.current_state() == "red", "Un eje en verde y el otro en rojo")
+	ns._time = TrafficLight.GREEN_TIME + 0.5
+	ew._time = ns._time
+	check(ns.current_state() == "yellow", "Después del verde viene el amarillo")

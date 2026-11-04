@@ -1,6 +1,8 @@
 # Arquitectura — Escape de Bucaramanga 3D
 
-Estado: aprobada el 3 de noviembre de 2026. Implementado hasta la Fase 2: `src/core` (EventBus, Settings, InputConfig, SceneLoader), `src/player`, `src/camera`, `src/physics`, `src/config` (perfiles de calidad), `src/ui` (menú, pausa, configuración, HUD básico, medidor, carga) y `src/world/prototype` (manzana de prueba). El resto está por construir.
+Estado: aprobada el 3 de noviembre de 2026. Implementado hasta la Fase 2: `src/core` (EventBus, Settings, InputConfig, SceneLoader), `src/player`, `src/camera`, `src/physics`, `src/config` (perfiles de calidad), `src/ui` (menú, pausa, configuración, HUD básico, medidor, carga) y `src/world/prototype` (manzana de prueba).
+
+Adelantos de la versión 0.3.0 (ver sección 8): `src/characters/humanoid_body.gd`, `src/ai/common` (personaje no jugable con navegación), `src/ai/police`, `src/ai/civilians`, `src/interaction` (interactuables, pruebas, escondites), `src/missions/escape_mission.gd`, `src/world/texture_factory.gd`, `src/world/navigation_builder.gd`, `src/world/props` (semáforo, luces de patrulla) y `src/ui` (minimapa, pantallas de la misión). El resto está por construir.
 
 ## 1. Tecnología
 
@@ -202,3 +204,18 @@ Mixamo **no** se usará salvo que lo decidas: su licencia permite usarlo en jueg
 | Capturas | Imagen de cada zona y pantalla en los dos renderizadores | Renderizado por software aquí |
 | Web | Que la exportación cargue en Chromium sin errores en consola | Navegador headless aquí |
 | Rendimiento | FPS y tiempo de cuadro en un recorrido fijo, por perfil | **Tu PC** (no hay GPU en este entorno) |
+
+
+## 8. Lo implementado en la versión 0.3.0
+
+| Pieza | Archivo | Notas |
+|---|---|---|
+| Cuerpo humano de primitivas | `src/characters/humanoid_body.gd` | Paleta y accesorios por personaje; lo usan Sebastián (`PrototypeBody`), la policía y los civiles. Se reemplaza en la Fase 3. |
+| Personaje no jugable | `src/ai/common/npc_character.gd` | `CharacterBody3D` + `NavigationAgent3D`, sube bordillos, gira y anima. |
+| Policía | `src/ai/police/police_officer.gd` | Estados `PATROL → SUSPICIOUS → CHASE → SEARCH → RETURN`. Percepción: cono, distancia, rayo de línea de vista, oído al correr. Aviso por radio con `EventBus.police_radio`. Todavía no hay `HeatSystem` ni patrulla en vehículo (Fase 6 completa). |
+| Civiles | `src/ai/civilians/civilian.gd` | Peatones que pasean, vendedor y amigos; se habla con E. |
+| Interacción | `src/interaction/` | `Interactable` (Area3D en la capa `interactuables`), `EvidencePickup`, `HidingSpot`. El jugador elige el más cercano. |
+| Misión | `src/missions/escape_mission.gd` | Coloca personajes y pruebas, cuenta pruebas, maneja atrapado/victoria. Las misiones de datos (`data/missions/*.json`) llegan en la Fase 8. |
+| Navmesh | `src/world/navigation_builder.gd` | Se hornea al cargar desde las colisiones estáticas (mundo y carros). |
+| Texturas procedurales | `src/world/texture_factory.gd` | Color + normales generados al iniciar; se reemplazan por texturas CC0 en la Fase 5. |
+| HUD | `src/ui/hud.gd`, `minimap.gd`, `mission_overlay.gd` | Objetivo, alerta, escondido, avisos, minimapa, pantallas de atrapado y victoria. |

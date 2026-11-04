@@ -6,3 +6,12 @@ signal stamina_changed(value: float, max_value: float, exhausted: bool)
 signal player_state_changed(state_name: StringName)
 signal pause_changed(paused: bool)
 signal mouse_capture_changed(captured: bool)
+
+# --- Policía, interacción y misión (prototipo de la Fase 2.5) ---
+signal player_caught(by: Node)
+signal police_radio(position: Vector3, from: Node)
+signal interaction_prompt_changed(text: String)
+signal hidden_changed(hidden: bool)
+signal evidence_collected(id: String, label: String)
+signal notify(text: String)
+signal mission_completed
