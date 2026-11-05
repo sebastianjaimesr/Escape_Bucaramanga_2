@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
+		<title>Escape de Bucaramanga · Las pruebas del malentendido</title>
+		<meta name="description" content="Escape room urbano en 3D inspirado en Bucaramanga: reúne pruebas, abre cerraduras y reconstruye lo que pasó sin que te atrape la policía. Se juega en el navegador, con teclado, mando o pantalla táctil.">
+		<meta name="theme-color" content="#06070a">
+		<meta property="og:type" content="website">
+		<meta property="og:title" content="Escape de Bucaramanga · Las pruebas del malentendido">
+		<meta property="og:description" content="Escape room urbano en 3D hecho con Godot. Pruebas, acertijos y una persecución por la manzana.">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<style>
+:root {
+	--bg: #06070a;
+	--text: #f3ede2;
+	--dim: #ada89e;
+	--accent: #e9a945;
+}
+
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+body {
+	color: var(--text);
+	background-color: var(--bg);
+	overflow: hidden;
+	touch-action: none;
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 1.1rem;
+	padding: 0 1.5rem;
+	text-align: center;
+	visibility: hidden;
+	background:
+		radial-gradient(ellipse at 70% 110%, rgba(158, 77, 33, 0.55), transparent 60%),
+		linear-gradient(180deg, #07080e 0%, #120a12 70%, #1c0f0c 100%);
+	transition: opacity 0.6s ease;
+}
+
+#status.done {
+	opacity: 0;
+}
+
+#status-over {
+	color: var(--accent);
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	margin: 0;
+}
+
+#status-title {
+	font-family: "Cinzel", "Trajan Pro", Georgia, "Times New Roman", serif;
+	font-weight: 700;
+	font-size: clamp(2rem, 7vw, 4.2rem);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	margin: 0;
+	line-height: 1.05;
+}
+
+#status-sub {
+	color: var(--dim);
+	margin: 0;
+	font-size: 1rem;
+}
+
+#status-progress {
+	appearance: none;
+	-webkit-appearance: none;
+	width: min(420px, 80vw);
+	height: 6px;
+	border: 0;
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.1);
+	overflow: hidden;
+	display: none;
+}
+
+#status-progress::-webkit-progress-bar {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+#status-progress::-webkit-progress-value {
+	background: var(--accent);
+}
+
+#status-progress::-moz-progress-bar {
+	background: var(--accent);
+}
+
+#status-percent {
+	display: none;
+	color: var(--dim);
+	font-size: 0.85rem;
+	font-variant-numeric: tabular-nums;
+}
+
+#status-notice {
+	display: none;
+	max-width: 520px;
+	background-color: #2a1414;
+	border-radius: 0.5rem;
+	border: 1px solid #e2483d;
+	color: #f3ede2;
+	line-height: 1.4;
+	padding: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#status { transition: none; }
+}
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas">
+			Tu navegador no puede mostrar el juego.
+		</canvas>
+
+		<noscript>
+			Para jugar hay que activar JavaScript.
+		</noscript>
+
+		<div id="status" role="status" aria-live="polite">
+			<p id="status-over">Bucaramanga · Santander</p>
+			<h1 id="status-title">Escape de<br>Bucaramanga</h1>
+			<p id="status-sub">Las pruebas del malentendido</p>
+			<progress id="status-progress" aria-label="Cargando el juego"></progress>
+			<div id="status-percent"></div>
+			<div id="status-notice"></div>
+		</div>
+
+		<script src="$GODOT_URL"></script>
+		<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusProgress = document.getElementById('status-progress');
+	const statusNotice = document.getElementById('status-notice');
+	const statusPercent = document.getElementById('status-percent');
+
+	let initializing = true;
+	let statusMode = '';
+
+	function setStatusMode(mode) {
+		if (statusMode === mode || !initializing) {
+			return;
+		}
+		if (mode === 'hidden') {
+			statusOverlay.classList.add('done');
+			setTimeout(() => statusOverlay.remove(), 600);
+			initializing = false;
+			return;
+		}
+		statusOverlay.style.visibility = 'visible';
+		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
+		statusPercent.style.display = mode === 'progress' ? 'block' : 'none';
+		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		statusMode = mode;
+	}
+
+	function setStatusNotice(text) {
+		while (statusNotice.lastChild) {
+			statusNotice.removeChild(statusNotice.lastChild);
+		}
+		const lines = text.split('\n');
+		lines.forEach((line) => {
+			statusNotice.appendChild(document.createTextNode(line));
+			statusNotice.appendChild(document.createElement('br'));
+		});
+	}
+
+	function displayFailureNotice(err) {
+		console.error(err);
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
+		} else {
+			setStatusNotice('Ocurrió un error desconocido.');
+		}
+		setStatusMode('notice');
+		initializing = false;
+	}
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+
+	if (missing.length !== 0) {
+		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			let serviceWorkerRegistrationPromise;
+			try {
+				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
+			} catch (err) {
+				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
+			}
+			// There's a chance that installing the service worker would fix the issue
+			Promise.race([
+				serviceWorkerRegistrationPromise.then((registration) => {
+					if (registration != null) {
+						return Promise.reject(new Error('Service worker already exists.'));
+					}
+					return registration;
+				}).then(() => engine.installServiceWorker()),
+				// For some reason, `getRegistration()` can stall
+				new Promise((resolve) => {
+					setTimeout(() => resolve(), 2000);
+				}),
+			]).then(() => {
+				// Reload if there was no error.
+				window.location.reload();
+			}).catch((err) => {
+				console.error('Error while registering service worker:', err);
+			});
+		} else {
+			// Display the message as usual
+			const missingMsg = 'Tu navegador no tiene lo necesario para el juego (WebGL 2). Prueba con Chrome, Edge, Firefox o Safari actualizados.\nFalta:\n';
+			displayFailureNotice(missingMsg + missing.join('\n'));
+		}
+	} else {
+		setStatusMode('progress');
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					statusProgress.value = current;
+					statusProgress.max = total;
+					statusPercent.textContent = Math.round((current / total) * 100) + ' %';
+				} else {
+					statusProgress.removeAttribute('value');
+					statusProgress.removeAttribute('max');
+				}
+			},
+		}).then(() => {
+			setStatusMode('hidden');
+		}, displayFailureNotice);
+	}
+}());
+		</script>
+	</body>
+</html>

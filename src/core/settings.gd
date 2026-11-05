@@ -16,6 +16,17 @@ const DEFAULTS := {
 		"show_fps": false,
 		"fullscreen": false,
 	},
+	"audio": {
+		"master": 0.8,
+		"music": 0.55,
+		"ambient": 0.6,
+		"sfx": 0.85,
+		"muted": false,
+	},
+	"interface": {
+		"touch_controls": "auto",  ## "auto" (si la pantalla es táctil), "on" u "off".
+		"reduce_motion": false,     ## Menos animaciones y sin grano de película.
+	},
 	"camera": {
 		"mouse_sensitivity": 0.25,  ## Grados por píxel de movimiento del ratón.
 		"stick_sensitivity": 160.0,  ## Grados por segundo con la palanca derecha.
@@ -81,6 +92,16 @@ func erase_section(section: String) -> void:
 
 func get_section(section: String) -> Dictionary:
 	return (_values.get(section, {}) as Dictionary).duplicate()
+
+
+## Controles táctiles en pantalla: según el ajuste o si la pantalla es táctil.
+func touch_controls_enabled() -> bool:
+	match str(get_value("interface", "touch_controls")):
+		"on":
+			return true
+		"off":
+			return false
+	return DisplayServer.is_touchscreen_available()
 
 
 func quality_profile() -> String:

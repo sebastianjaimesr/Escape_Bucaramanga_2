@@ -16,6 +16,11 @@ var pause_menu: PauseMenu
 var navigation: NavigationRegion3D
 var mission: EscapeMission
 var overlay: MissionOverlay
+var escape_ui: EscapeUi
+var touch: TouchControls
+## Hay un panel del escape room abierto (inventario, cerradura…): el mundo está congelado.
+var modal_open := false
+var _modal: ModalPanel
 ## Las pruebas de movimiento lo apagan para que la policía no interfiera.
 var police_enabled := true
 
@@ -44,8 +49,54 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)
 	pause_menu.respawn_requested.connect(respawn)
+	pause_menu.opened.connect(mission.save_progress)
+	escape_ui = EscapeUi.new(self)
+	add_child(escape_ui)
+	hud.escape_ui = escape_ui
+	touch = TouchControls.new(self)
+	add_child(touch)
 	apply_quality()
 	Settings.changed.connect(_on_setting_changed)
+	AudioManager.play_music("explore")
+	AudioManager.play_ambient(true)
+
+
+func _exit_tree() -> void:
+	AudioManager.set_chase(0)
+	AudioManager.play_ambient(false)
+
+
+## Con controles táctiles no se captura el ratón (el dedo mueve la cámara).
+func uses_touch() -> bool:
+	return touch != null and touch.active
+
+
+func capture_mouse() -> void:
+	if uses_touch() or DisplayServer.get_name() == "headless":
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	EventBus.mouse_capture_changed.emit(true)
+
+
+func open_modal(panel: ModalPanel) -> void:
+	_modal = panel
+	modal_open = true
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	EventBus.pause_changed.emit(true)
+
+
+func close_modal(panel: ModalPanel) -> void:
+	if panel != _modal:
+		return
+	_modal = null
+	modal_open = false
+	get_tree().paused = false
+	EventBus.pause_changed.emit(false)
+	if not mission.finished:
+		# El clic o la tecla que cerró el panel cuenta como gesto del jugador:
+		# en el navegador así sí se puede volver a capturar el ratón.
+		capture_mouse()
 
 
 ## Luz de final de la tarde (hacia las 5 p. m.): sol bajo y cálido, sombras
@@ -130,7 +181,7 @@ func _process(_delta: float) -> void:
 	# En el navegador, Esc suelta el ratón sin que el juego reciba la tecla:
 	# si el ratón deja de estar capturado mientras se juega, se abre la pausa.
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	if _was_captured and not captured and not get_tree().paused and not mission.finished:
+	if _was_captured and not captured and not get_tree().paused and not mission.finished and not modal_open:
 		pause_menu.open()
 	_was_captured = captured
 
@@ -139,13 +190,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Clic dentro del juego: capturar el ratón para mover la cámara.
 	if event is InputEventMouseButton and event.pressed and not get_tree().paused and not mission.finished:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			EventBus.mouse_capture_changed.emit(true)
+			capture_mouse()
 
 
 func _notification(what: int) -> void:
 	# Si el navegador o el sistema sueltan el ratón (Esc en web, Alt+Tab), se pausa.
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not get_tree().paused and pause_menu != null:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not get_tree().paused and pause_menu != null \
+			and mission != null and not mission.finished:
 		pause_menu.open()
 
 

@@ -12,19 +12,15 @@ var _profile: OptionButton
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = UiStyle.PANEL
-	sb.border_color = UiStyle.PANEL_BORDER
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(8)
+	var sb := UiStyle.box(UiStyle.PANEL, UiStyle.PANEL_BORDER, 12)
 	sb.set_content_margin_all(24)
 	add_theme_stylebox_override("panel", sb)
-	custom_minimum_size = Vector2(560, 0)
+	custom_minimum_size = Vector2(minf(560.0, get_viewport_rect().size.x - 40.0), 0)
 
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 12)
 	add_child(outer)
-	outer.add_child(UiStyle.label("Configuración", 28))
+	outer.add_child(UiStyle.title("Configuración", 30))
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 440)
@@ -34,6 +30,23 @@ func _ready() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 10)
 	scroll.add_child(list)
+
+	_section(list, "Sonido")
+	_row(list, "Silenciar todo", _check("audio", "muted"))
+	_row(list, "Volumen general", _slider("audio", "master", 0.0, 1.0, 0.05, true))
+	_row(list, "Música", _slider("audio", "music", 0.0, 1.0, 0.05, true))
+	_row(list, "Ambiente de la ciudad", _slider("audio", "ambient", 0.0, 1.0, 0.05, true))
+	_row(list, "Efectos", _slider("audio", "sfx", 0.0, 1.0, 0.05, true))
+
+	_section(list, "Interfaz y accesibilidad")
+	var touch := OptionButton.new()
+	var touch_ids := ["auto", "on", "off"]
+	for t: String in ["Automático", "Siempre", "Nunca"]:
+		touch.add_item(t)
+	touch.selected = maxi(0, touch_ids.find(str(Settings.get_value("interface", "touch_controls"))))
+	touch.item_selected.connect(func(i: int) -> void: Settings.set_value("interface", "touch_controls", touch_ids[i]))
+	_row(list, "Controles táctiles", touch)
+	_row(list, "Reducir animaciones", _check("interface", "reduce_motion"))
 
 	_section(list, "Gráficos")
 	_profile = OptionButton.new()
@@ -58,8 +71,8 @@ func _ready() -> void:
 	_section(list, "Controles")
 	list.add_child(UiStyle.label("Haz clic en una tecla y pulsa la nueva. Esc cancela.", 13, UiStyle.TEXT_DIM))
 	for action: String in InputConfig.IN_USE:
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(170, 34)
+		var b := UiStyle.button("", 170)
+		b.custom_minimum_size = Vector2(170, 40)
 		b.pressed.connect(_start_rebind.bind(action))
 		_rebind_buttons[action] = b
 		_row(list, InputConfig.label(action), b)
@@ -97,8 +110,10 @@ func _refresh_bindings() -> void:
 
 
 func _section(parent: Control, title: String) -> void:
-	var l := UiStyle.label(title.to_upper(), 13, UiStyle.ACCENT)
-	parent.add_child(l)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 4)
+	parent.add_child(gap)
+	parent.add_child(UiStyle.overline(title))
 
 
 func _row(parent: Control, text: String, control: Control) -> void:
@@ -118,7 +133,7 @@ func _check(section: String, key: String) -> CheckBox:
 	return c
 
 
-func _slider(section: String, key: String, min_v: float, max_v: float, step: float) -> HBoxContainer:
+func _slider(section: String, key: String, min_v: float, max_v: float, step: float, percent: bool = false) -> HBoxContainer:
 	var box := HBoxContainer.new()
 	var s := HSlider.new()
 	s.min_value = min_v
@@ -128,10 +143,14 @@ func _slider(section: String, key: String, min_v: float, max_v: float, step: flo
 	s.value = float(Settings.get_value(section, key))
 	var v := UiStyle.label("", 14, UiStyle.TEXT_DIM)
 	v.custom_minimum_size = Vector2(44, 0)
-	v.text = str(snappedf(s.value, step))
+	var fmt := func(val: float) -> String:
+		return "%d %%" % roundi(val * 100.0) if percent else str(snappedf(val, step))
+	v.text = fmt.call(s.value)
 	s.value_changed.connect(func(val: float) -> void:
-		v.text = str(snappedf(val, step))
-		Settings.set_value(section, key, val))
+		v.text = fmt.call(val)
+		Settings.set_value(section, key, val)
+		if section == "audio":
+			AudioManager.sfx("key"))
 	box.add_child(s)
 	box.add_child(v)
 	return box

@@ -18,7 +18,8 @@ const ACTIONS := {
 	"crouch": ["Agacharse", [KEY_C]],
 	"interact": ["Interactuar", [KEY_E]],
 	"vehicle": ["Entrar o salir del vehículo", [KEY_F]],
-	"inventory": ["Inventario", [KEY_TAB]],
+	"inventory": ["Inventario", [KEY_TAB, KEY_I]],
+	"hint": ["Pedir una pista", [KEY_H]],
 	"map": ["Mapa", [KEY_M]],
 	"pause": ["Pausa", [KEY_ESCAPE]],
 	"toggle_fps": ["Medidor de rendimiento", [KEY_F3]],
@@ -27,7 +28,7 @@ const ACTIONS := {
 ## Acciones que el jugador puede reasignar (la pausa queda fija en Esc).
 const REBINDABLE := [
 	"move_forward", "move_back", "move_left", "move_right",
-	"run", "jump", "crouch", "interact", "vehicle", "inventory", "map", "toggle_fps",
+	"run", "jump", "crouch", "interact", "vehicle", "inventory", "hint", "map", "toggle_fps",
 ]
 
 ## Acciones que ya hacen algo en el juego. Solo estas se muestran en el panel de
@@ -35,17 +36,19 @@ const REBINDABLE := [
 ## Se amplía en cada fase (interactuar, vehículo, inventario, mapa…).
 const IN_USE := [
 	"move_forward", "move_back", "move_left", "move_right",
-	"run", "jump", "crouch", "interact", "toggle_fps",
+	"run", "jump", "crouch", "interact", "inventory", "hint", "toggle_fps",
 ]
 
 const JOY_BUTTONS := {
 	"jump": [JOY_BUTTON_A],
 	"crouch": [JOY_BUTTON_B],
 	"interact": [JOY_BUTTON_X],
-	"vehicle": [JOY_BUTTON_Y],
+	"vehicle": [JOY_BUTTON_DPAD_UP],
 	"run": [JOY_BUTTON_LEFT_STICK, JOY_BUTTON_LEFT_SHOULDER],
 	"pause": [JOY_BUTTON_START],
 	"map": [JOY_BUTTON_BACK],
+	"inventory": [JOY_BUTTON_Y],
+	"hint": [JOY_BUTTON_RIGHT_SHOULDER],
 }
 
 const JOY_AXES := {
