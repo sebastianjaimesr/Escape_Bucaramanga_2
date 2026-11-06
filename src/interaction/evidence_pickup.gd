@@ -6,6 +6,8 @@ extends Node3D
 var id := ""
 var label := ""
 var collected := false
+## Si es false, la prueba todavía no aparece (la gorra, hasta ver el video del celular).
+var revealed := true
 var interactable: Interactable
 
 var _item: Node3D
@@ -51,6 +53,7 @@ func _ready() -> void:
 	interactable = Interactable.new("Recoger: %s" % label, 1.3)
 	interactable.action = _collect
 	add_child(interactable)
+	_apply_visibility()
 
 
 func _process(delta: float) -> void:
@@ -60,12 +63,29 @@ func _process(delta: float) -> void:
 
 
 func _collect(_player: PlayerController) -> void:
-	if collected:
+	if collected or not revealed:
 		return
-	collected = true
-	interactable.enabled = false
-	visible = false
+	mark_collected()
 	EventBus.evidence_collected.emit(id, label)
+
+
+## Recogida sin aviso (al cargar una partida guardada).
+func mark_collected() -> void:
+	collected = true
+	_apply_visibility()
+
+
+func reveal() -> void:
+	revealed = true
+	_apply_visibility()
+
+
+func _apply_visibility() -> void:
+	var on := revealed and not collected
+	visible = on
+	set_process(on)
+	if interactable != null:
+		interactable.enabled = on
 
 
 static func _mesh_for(kind: String) -> Mesh:

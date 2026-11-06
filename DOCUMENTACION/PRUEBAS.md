@@ -3,7 +3,7 @@
 ## Cómo ejecutarlas
 
 ```bash
-# Juego 3D: 39 pruebas de integración
+# Juego 3D: 54 pruebas de integración
 godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
 
 # Capturas de pantalla (necesita ventana; no funciona con --headless)
@@ -15,6 +15,30 @@ godot --headless --path clasico-2d --fixed-fps 60 res://tests/bot_runner.tscn
 ```
 
 `test_runner` sale con código 0 si todo pasa y 1 si algo falla. Usa su propio archivo de configuración (`user://test_settings.cfg`) y lo borra al terminar: no toca la configuración del jugador.
+
+## Resultados de la versión 0.4.0 (5 de noviembre de 2026)
+
+Entorno: Godot 4.7.2 estable, Linux, headless, física a 60 Hz. **54 OK, 0 fallos.** Las 39 anteriores siguen pasando (`test_evidence_pickup` y `test_friends_complete_mission` se adaptaron al escape room) y se agregaron 15:
+
+| Prueba | Qué comprueba |
+|---|---|
+| test_story_data_is_consistent | Tres pistas por paso, dependencias hacia atrás, la clave es la hora de la foto, respuestas válidas, objetos completos |
+| test_inventory_and_hint_units | Sin repetidos, reemplazo en orden, carga con datos inválidos, tres pistas y límite al cargar |
+| test_hints_follow_current_step | Las pistas apuntan al objetivo pendiente; no hay cuarta pista |
+| test_lock_box_code | Revisar la caja agachado en el túnel; hora equivocada, incompleta y correcta; entrega la USB; el panel se cierra |
+| test_phone_pattern_reveals_cap | Celular bloqueado al inventario, patrón equivocado y la Z; aparece la gorra |
+| test_diaz_tells_the_pattern | Diaz dice la pista; «Usar» en el inventario abre el patrón |
+| test_deduction_wrong_then_right | Contrarreloj de 15 min, respuestas incompletas y equivocadas (+30 s), victoria y rango |
+| test_inventory_and_hint_panels_toggle | Tab abre y cierra (también con la tecla real), H y Esc; con la pausa no se abren paneles |
+| test_save_and_continue | Guardar y continuar: modo, objetivos, inventario, tiempo, pistas, caja abierta, pruebas recogidas |
+| test_corrupt_save_is_ignored | Partida dañada: se aparta y se empieza de cero |
+| test_time_limit_ends_game | Se acaba el tiempo: pantalla y controles bloqueados |
+| test_restart_from_pause | La pausa guarda; reiniciar pide confirmación y descarta la partida |
+| test_touch_controls_drive_actions | Palanca, botón Saltar y cámara con el dedo |
+| test_ui_scales_with_orientation | Base 1280×720 o 720×1280, tema y tipografías cargados |
+| test_audio_buses_and_volume | Buses, archivos de audio, volumen, silencio y bucle |
+
+**Prueba manual de la versión web** (exportada con la plantilla sin hilos, servida localmente y abierta en Chromium con SwiftShader mediante Playwright): carga con la pantalla propia, portada, elección de modo, juego, Tab abre y cierra el inventario, H abre las pistas. Con un celular emulado (Pixel 7 en horizontal, toques reales) los toques en la portada y el modo funcionan y aparecen los controles táctiles. No hubo errores de JavaScript en la consola. No se pudo probar en un celular físico ni medir FPS (no hay GPU en este entorno).
 
 ## Resultados de la versión 0.3.0 (4 de noviembre de 2026)
 

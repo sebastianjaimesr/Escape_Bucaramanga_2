@@ -1,6 +1,6 @@
 # Controles
 
-Estado: versión 0.3.0. Solo se listan como activos los controles que ya hacen algo.
+Estado: versión 0.4.0. Solo se listan como activos los controles que ya hacen algo.
 
 ## Teclado y ratón
 
@@ -13,9 +13,12 @@ Estado: versión 0.3.0. Solo se listan como activos los controles que ya hacen a
 | Mover la cámara | Ratón (haz clic en el juego para capturarlo) | Activo |
 | Pausa | Esc | Activo |
 | Medidor de rendimiento | F3 | Activo |
-| Interactuar (recoger pruebas, hablar, comprar granizado) | E | Activo |
+| Interactuar (recoger pruebas, hablar, revisar la caja, comprar granizado) | E | Activo |
 | Entrar o salir de vehículos | F | Fase 7 |
-| Inventario | Tab | Fase 9 |
+| Inventario (abrir y cerrar) | Tab o I | Activo |
+| Pedir una pista | H | Activo |
+| Teclado de la caja | Dígitos, Retroceso, Enter | Activo |
+| Patrón del celular | Teclas 1-9, Enter, Retroceso (o arrastrar) | Activo |
 | Mapa | M | Fase 9 |
 
 En el navegador, Esc libera el ratón y abre la pausa. Para volver a capturarlo, pulsa **Continuar** o haz clic en el juego.
@@ -30,7 +33,22 @@ En el navegador, Esc libera el ratón y abre la pausa. Para volver a capturarlo,
 | Saltar | A |
 | Agacharse | B |
 | Interactuar | X |
+| Inventario | Y |
+| Pista | RB |
 | Pausa | Start |
+
+## Pantalla táctil
+
+| Zona o botón | Acción |
+|---|---|
+| Mitad izquierda | Palanca virtual (aparece donde apoyas el dedo; al tope, corre) |
+| Mitad derecha | Arrastrar mueve la cámara |
+| Usar | Interactuar (se ilumina cuando hay algo cerca) |
+| Saltar / Agachar | Saltar / agacharse o esconderse |
+| Correr | Se queda activo hasta volver a tocarlo |
+| Arriba a la derecha | Inventario, pistas, sonido y pausa |
+
+Se activa sola en pantallas táctiles. Configuración → Interfaz → Controles táctiles: Automático, Siempre o Nunca.
 
 ## Reasignar teclas
 

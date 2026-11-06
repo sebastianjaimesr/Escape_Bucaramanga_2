@@ -1,5 +1,32 @@
 # Cambios
 
+## 0.4.0 — Rediseño como escape room (5 de noviembre de 2026)
+
+### Gameplay
+- La misión pasa a ser un escape room de 7 objetivos: foto del robo, recibo, caja de grabación del túnel (clave 1742, la hora de la foto), celular de Diaz, su patrón (Z, «la última letra del abecedario»), la gorra del ladrón (aparece después de ver el video) y la reconstrucción final con tres preguntas.
+- Inventario (Tab o I) con descripción de cada prueba y botón Usar.
+- Pistas por niveles (H): tres por objetivo, la última da la solución.
+- Modos Explorador (sin límite) y Contrarreloj (15 min, +30 s por respuesta equivocada).
+- Resultado final con tiempo, pistas, veces atrapado, errores y rango; pantalla de tiempo agotado.
+- Guardado automático (`user://partida.cfg`) y «Continuar» en la portada; «Reiniciar la partida» en la pausa.
+
+### Interfaz
+- Portada nueva con fondo animado por shader, introducción, elección de modo, «Cómo se juega» y expediente del caso.
+- Tema global con paleta propia y tipografías Cinzel y Outfit (OFL); foco visible en todos los botones.
+- HUD nuevo: lista de objetivos, reloj, botones de inventario, pistas, sonido y pausa, tarjeta animada al descubrir una prueba, viñeta roja en persecución.
+- Paneles de teclado, patrón y reconstrucción con respuesta visual y sonora al acertar o fallar.
+- Interfaz escalada (`canvas_items`), con base vertical en celulares; plantilla HTML web propia con pantalla de carga.
+- Opción «Reducir animaciones».
+
+### Audio
+- Música de portada, exploración y persecución (se mezcla según la alerta de la policía), ambiente de ciudad y 13 efectos. Volúmenes por separado y silencio.
+
+### Táctil
+- Palanca virtual, cámara con el dedo y botones Usar, Saltar, Agachar y Correr (multitáctil). Automático en pantallas táctiles o desde Configuración.
+
+### Pruebas
+- 15 pruebas nuevas (54 en total): datos de la historia, inventario y pistas, caja, patrón, Diaz, reconstrucción, paneles con teclado, guardado y partida dañada, contrarreloj, reinicio, táctil, escalado y audio.
+
 ## 0.3.0 — Gráficos, policía e interacción (4 de noviembre de 2026)
 
 Adelanto de partes de las Fases 5 (ambiente), 6 (policía) y 8 (una misión) sobre la manzana de prueba, a pedido del usuario. La ciudad de Bucaramanga y el modelo definitivo de Sebastián siguen pendientes.

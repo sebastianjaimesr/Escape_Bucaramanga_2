@@ -16,11 +16,32 @@ var current_path := ""
 var _screen: LoadingScreen
 
 
+## Tamaño base de la interfaz: 1280×720 en horizontal y 720×1280 en vertical.
+## Con el modo de estiramiento canvas_items la interfaz se escala a la pantalla
+## (nítida en pantallas de alta densidad) y el 3D se dibuja a la resolución real.
+const BASE_LANDSCAPE := Vector2i(1280, 720)
+const BASE_PORTRAIT := Vector2i(720, 1280)
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().root.theme = UiStyle.theme()
+	get_tree().root.size_changed.connect(_fit_ui)
+	_fit_ui()
 	_screen = LoadingScreen.new()
 	add_child(_screen)
 	_screen.back_requested.connect(func() -> void: change_scene(MAIN_MENU))
+
+
+func _exit_tree() -> void:
+	get_tree().root.theme = null
+	UiStyle.clear_cache()
+
+
+func _fit_ui() -> void:
+	var root := get_tree().root
+	var s := root.size
+	root.content_scale_size = BASE_PORTRAIT if s.y > s.x else BASE_LANDSCAPE
 
 
 func change_scene(path: String, title: String = "") -> void:
