@@ -3,8 +3,13 @@
 ## Cómo ejecutarlas
 
 ```bash
-# Juego 3D: 54 pruebas de integración
+# Juego 3D: 72 pruebas de integración
 godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
+# Solo algunas (para depurar)
+TEST_ONLY=test_chapter3_bodega,test_wanted_reinforcements godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
+
+# Capturas de la aventura (portada, capítulos, tienda, capítulos 2 a 4, recompensas)
+godot --path . --rendering-method gl_compatibility --resolution 1280x720 res://tests/adventure_screenshots.tscn -- <carpeta>
 
 # Capturas de pantalla (necesita ventana; no funciona con --headless)
 godot --path . res://tests/screenshots.tscn -- <carpeta> <bajo|medio|alto>
@@ -14,7 +19,36 @@ godot --headless --path clasico-2d res://tests/test_runner.tscn
 godot --headless --path clasico-2d --fixed-fps 60 res://tests/bot_runner.tscn
 ```
 
-`test_runner` sale con código 0 si todo pasa y 1 si algo falla. Usa su propio archivo de configuración (`user://test_settings.cfg`) y lo borra al terminar: no toca la configuración del jugador.
+`test_runner` sale con código 0 si todo pasa y 1 si algo falla. Usa sus propios archivos de configuración, partida y perfil (`user://test_settings.cfg`, `user://test_partida.cfg`, `user://test_perfil.cfg`) y los borra: no toca nada del jugador.
+
+## Resultados de la versión 0.5.0 (8 de noviembre de 2026)
+
+Entorno: Godot 4.7.2 estable, Linux, headless, física a 60 Hz. **72 OK, 0 fallos.** Las 54 anteriores siguen pasando sin cambios en lo que comprueban y se agregaron 18:
+
+| Prueba | Qué comprueba |
+|---|---|
+| test_profile_levels_skills_and_shop | Niveles por XP, punto de habilidad al subir, requisitos de nivel y de puntos, efecto de Paso ligero, compra con y sin plata, latas extra, nivel máximo, logros de nivel y de compra |
+| test_profile_save_and_corrupt_file | El perfil se guarda y se carga (XP, objetos, postales, capítulos); un archivo dañado se aparta como `.bad` y se empieza de cero |
+| test_chapter_rewards_and_unlocks | Bonos de XP y dinero por capítulo, desbloqueo en orden, repetir paga el 25 %, mejor tiempo y rango, datos de los cuatro capítulos (tres pistas por paso, dependencias válidas, objetos en el catálogo) |
+| test_wanted_levels_decay_and_disguise | Niveles de búsqueda, el HUD los muestra, bajan solos, el disfraz baja dos niveles, la chaqueta solo una vez por capítulo, logro «Escurridizo» |
+| test_wanted_reinforcements | En Persecución llegan refuerzos, con un máximo, y se van al volver a Tranquilo |
+| test_can_distracts_officer | Lanzar una lata gasta una, vuela, el policía que no te vio va a revisar el ruido, logro, sin latas no se lanza |
+| test_vault_onto_high_box | Subir la caja de 1 m; encontrar el borde y trepar; lo bajito no se trepa |
+| test_slide_from_run | Agacharse corriendo desliza, va agachado y termina solo |
+| test_collectible_pickup | Las 10 postales aparecen, recoger una da dinero y queda en el perfil, no vuelve a aparecer |
+| test_chapter2_investigation_and_thief | Capítulo 2 completo: testigo, pistas ocultas hasta hablarle, acusar sin pistas o al equivocado, ladrón caminando, HUD de seguimiento, caneca vigilada, lata que lo distrae, sobre, alarma, Doña Rosa pide perder a la policía, victoria y capítulo 3 abierto |
+| test_chapter2_follow_fails_when_far | Quedarse a más de 30 m durante 5 s hace perder al ladrón y volver al punto de control |
+| test_chapter2_lives_run_out | Tres corazones: cada captura quita uno y vuelve al punto de control; sin corazones, derrota con «Reintentar» |
+| test_chapter3_bodega | Tres vigilantes, dos cámaras, faroles encendidos de noche, camino de la puerta a la oficina, entrar al patio, fotos y libro, Buitrago no llega con la búsqueda alta y sí con la búsqueda baja |
+| test_security_camera_raises_alarm | Parado frente a una cámara, suena la alarma y sube la búsqueda |
+| test_chapter4_chase_and_disguise | Lluvia de noche, empieza en Persecución, túnel, perder a la policía, mochila con impermeable, la patrulla te ve, «Ponértelo» desde el inventario baja la búsqueda, llegar al refugio gana |
+| test_continue_saved_chapter | «Continuar» retoma el capítulo guardado con sus objetivos y pistas |
+| test_chapter_select_and_profile_pages | Solo el capítulo 1 abierto al principio, se abre el 2 al terminar el 1, la tienda lista todo, comprar sin plata está desactivado con el motivo, el botón compra, la pestaña de logros |
+| test_victory_screen_rewards | La victoria muestra recompensas y el botón al capítulo siguiente, el perfil recibe XP y dinero |
+
+### Prueba en navegador (0.5.0)
+
+Exportación web (`gl_compatibility`, sin hilos) servida en local y abierta con Chromium (Playwright, SwiftShader): carga sin errores de consola, portada con la campaña, selección de capítulos (el 1 abierto y los demás bloqueados), elección de modo, entrada al juego, HUD nuevo y lanzar una lata con G.
 
 ## Resultados de la versión 0.4.0 (5 de noviembre de 2026)
 

@@ -7,6 +7,8 @@ extends CharacterBody3D
 ## El movimiento es relativo a la cámara: camera_yaw lo actualiza la cámara.
 
 signal landed(fall_speed: float)
+## Pidió cambiarse de chaqueta (Q); lo resuelve la misión.
+signal disguise_requested
 
 # --- Velocidades (m/s) ---
 const WALK_SPEED := 2.6
@@ -54,6 +56,10 @@ var air_max_speed := WALK_SPEED  ## En el aire se conserva el impulso, sin acele
 var cover_count := 0             ## Matorrales en los que está metido (HidingSpot).
 var energy_timer := 0.0          ## Segundos de resistencia infinita (granizado).
 var focused: Interactable        ## Lo que se puede usar con Interactuar ahora mismo.
+var cans := 0                    ## Latas para distraer (las pone la misión al empezar).
+var vault_target := Vector3.INF  ## Último borde encontrado por find_vault().
+var vault_count := 0
+var slide_count := 0
 
 var body_shape: CapsuleShape3D
 var visual: PrototypeBody
@@ -119,6 +125,10 @@ func _physics_process(delta: float) -> void:
 		coyote_timer = maxf(0.0, coyote_timer - delta)
 	state_machine.physics_update(delta)
 	_update_stamina(delta)
+	if input_enabled and Input.is_action_just_pressed("throw"):
+		throw_can()
+	if input_enabled and Input.is_action_just_pressed("gadget"):
+		disguise_requested.emit()
 	if not is_on_floor():
 		_air_peak_speed = maxf(_air_peak_speed, -velocity.y)
 	else:
@@ -133,6 +143,9 @@ func _physics_process(delta: float) -> void:
 	var on_floor := is_on_floor()
 	if on_floor and not _was_on_floor:
 		landed.emit(_air_peak_speed)
+		if _air_peak_speed > 4.5 and is_inside_tree():
+			Fx.dust(get_parent(), global_position, 0.6 + _air_peak_speed * 0.05)
+			AudioManager.sfx("land", randf_range(0.9, 1.1))
 		_air_peak_speed = 0.0
 	_was_on_floor = on_floor
 	visual.update_visual(self, delta)
@@ -296,7 +309,7 @@ func _update_stamina(delta: float) -> void:
 		stamina = MAX_STAMINA
 		exhausted = false
 	elif is_running() and horizontal_speed() > WALK_SPEED + 0.2:
-		stamina = maxf(0.0, stamina - STAMINA_DRAIN * delta)
+		stamina = maxf(0.0, stamina - STAMINA_DRAIN / PlayerProfile.stamina_mult() * delta)
 		_regen_delay = STAMINA_REGEN_DELAY
 		if stamina <= 0.0:
 			exhausted = true
@@ -351,6 +364,62 @@ func _test_motion(from: Transform3D, motion: Vector3, result: PhysicsTestMotionR
 	params.motion = motion
 	params.margin = safe_margin
 	return PhysicsServer3D.body_test_motion(get_rid(), params, result)
+
+
+# ---------------------------------------------------------------------------
+# Escalar y lanzar
+# ---------------------------------------------------------------------------
+## Busca un borde para escalar justo delante (hacia donde se mueve o mira).
+## Devuelve el punto de llegada encima del obstáculo, o Vector3.INF si no hay
+## nada escalable: tiene que haber algo bloqueando a menos de 0,7 m, de entre
+## 0,45 m y la altura máxima (PlayerProfile.vault_height() por factor), espacio
+## libre encima y suelo plano donde apoyarse (o caída al otro lado de un muro delgado).
+func find_vault(factor: float = 1.0) -> Vector3:
+	vault_target = Vector3.INF
+	var dir := move_input()
+	var fwd := dir.normalized() if dir.length() > 0.1 else Vector3(-sin(facing_yaw), 0.0, -cos(facing_yaw))
+	var from := global_transform
+	var result := PhysicsTestMotionResult3D.new()
+	if not _test_motion(from, fwd * 0.7, result):
+		return Vector3.INF  # Nada delante.
+	if result.get_collision_normal().y > 0.5:
+		return Vector3.INF  # Es una rampa o suelo, no un borde.
+	var max_h := PlayerProfile.vault_height() * factor
+	var h := 0.45
+	while h <= max_h + 0.001:
+		if _test_motion(from, Vector3.UP * h, result):
+			return Vector3.INF  # Techo encima.
+		var raised := from.translated(Vector3.UP * h)
+		if not _test_motion(raised, fwd * 0.85, result):
+			var ahead := raised.translated(fwd * 0.85)
+			if _test_motion(ahead, Vector3.DOWN * (h + 0.3), result):
+				if result.get_collision_normal().y < 0.7:
+					return Vector3.INF
+				var top := h + result.get_travel().y
+				if top < 0.4:
+					return Vector3.INF  # Lo de adelante es bajo: basta con caminar o saltar.
+				vault_target = global_position + fwd * 0.85 + Vector3.UP * (top + 0.03)
+			else:
+				vault_target = global_position + fwd * 0.85 + Vector3.UP * h
+			return vault_target
+		h += 0.1
+	return Vector3.INF
+
+
+## Lanza una lata hacia donde mira la cámara. Al caer hace ruido (EventBus.noise)
+## y la policía y los vigilantes cercanos van a revisar.
+func throw_can() -> bool:
+	if cans <= 0 or not is_inside_tree():
+		return false
+	cans -= 1
+	var can := ThrownCan.new()
+	get_parent().add_child(can)
+	var fwd := Vector3(-sin(camera_yaw), 0.0, -cos(camera_yaw))
+	can.global_position = global_position + Vector3.UP * 1.5 + fwd * 0.5
+	can.linear_velocity = (fwd * 10.0 + Vector3.UP * 4.5) * PlayerProfile.throw_mult()
+	can.angular_velocity = Vector3(randf_range(-8, 8), randf_range(-8, 8), randf_range(-8, 8))
+	AudioManager.sfx("throw")
+	return true
 
 
 ## Coloca al jugador en un punto, sin velocidad (reaparición y pruebas).

@@ -6,11 +6,13 @@ extends Node
 ## Cada prueba crea una manzana de prueba nueva, simula la entrada del jugador
 ## con Input.action_press y avanza cuadros de física reales. Al final imprime
 ## el resumen y sale con código 0 (todo bien) o 1 (algún fallo).
+## Con la variable TEST_ONLY=prueba1,prueba2 corre solo esas.
 ## Usa un archivo de configuración aparte para no tocar el del jugador.
 
 const WORLD_SCENE := "res://scenes/world/prototype/prototype_world.tscn"
 const TEST_SETTINGS := "user://test_settings.cfg"
 const TEST_SAVE := "user://test_partida.cfg"
+const TEST_PROFILE := "user://test_perfil.cfg"
 
 var _passed := 0
 var _failed: Array[String] = []
@@ -23,6 +25,8 @@ var player: PlayerController
 func _ready() -> void:
 	Settings.config_path = TEST_SETTINGS
 	SaveGame.path = TEST_SAVE
+	PlayerProfile.path = TEST_PROFILE
+	PlayerProfile.reset()
 	GameSession.save_enabled = false
 	_remove_test_settings()
 	Settings.load_settings()
@@ -85,7 +89,30 @@ func _ready() -> void:
 		"test_touch_controls_drive_actions",
 		"test_ui_scales_with_orientation",
 		"test_audio_buses_and_volume",
+		# Aventura: progresión, sistemas nuevos y capítulos 2 a 4
+		"test_profile_levels_skills_and_shop",
+		"test_profile_save_and_corrupt_file",
+		"test_chapter_rewards_and_unlocks",
+		"test_wanted_levels_decay_and_disguise",
+		"test_wanted_reinforcements",
+		"test_can_distracts_officer",
+		"test_vault_onto_high_box",
+		"test_slide_from_run",
+		"test_collectible_pickup",
+		"test_chapter2_investigation_and_thief",
+		"test_chapter2_follow_fails_when_far",
+		"test_chapter2_lives_run_out",
+		"test_chapter3_bodega",
+		"test_security_camera_raises_alarm",
+		"test_chapter4_chase_and_disguise",
+		"test_continue_saved_chapter",
+		"test_chapter_select_and_profile_pages",
+		"test_victory_screen_rewards",
 	]:
+		# TEST_ONLY=prueba1,prueba2 corre solo esas (para depurar).
+		var only := OS.get_environment("TEST_ONLY")
+		if only != "" and not test in only.split(","):
+			continue
 		await _run(test)
 	_remove_test_settings()
 	print("")
@@ -104,7 +131,12 @@ func _run(test: String) -> void:
 	GameSession.save_enabled = false
 	GameSession.continue_saved = false
 	GameSession.mode = "explorador"
+	GameSession.chapter = Chapters.FIRST
 	SaveGame.erase()
+	PlayerProfile.reset()
+	for suffix: String in ["", ".tmp", ".bad"]:
+		if FileAccess.file_exists(TEST_PROFILE + suffix):
+			DirAccess.remove_absolute(TEST_PROFILE + suffix)
 	if world != null:
 		world.queue_free()
 		world = null
@@ -1125,3 +1157,455 @@ func test_audio_buses_and_volume() -> void:
 	var music := AudioManager.stream(AudioManager.TRACKS["menu"], true) as AudioStreamOggVorbis
 	check(music != null and music.loop, "La música se repite en bucle")
 	Settings.reset_to_defaults()
+
+
+# ---------------------------------------------------------------------------
+# Aventura: progresión
+# ---------------------------------------------------------------------------
+func test_profile_levels_skills_and_shop() -> void:
+	PlayerProfile.reset()
+	check(PlayerProfile.level() == 1 and PlayerProfile.level_name() == Chapters.level_name(1), "Se empieza en el nivel 1")
+	check(PlayerProfile.learn_problem("paso_ligero") != "", "Sin nivel no se aprende nada")
+	PlayerProfile.add_xp(Chapters.level_xp(2))
+	check(PlayerProfile.level() == 2, "Con la XP del nivel 2 se sube (%d)" % PlayerProfile.level())
+	check(PlayerProfile.skill_points == 1, "Subir de nivel da un punto de habilidad")
+	check(PlayerProfile.learn_problem("parkour").contains("nivel 3"), "Parkour pide nivel 3")
+	check(PlayerProfile.learn("paso_ligero"), "Se aprende Paso ligero")
+	check(is_equal_approx(PlayerProfile.noise_mult(), 0.5), "Paso ligero baja el ruido a la mitad")
+	check(PlayerProfile.learn_problem("pulmones") == "No tienes puntos de habilidad.", "Sin puntos no se aprende otra")
+	check(PlayerProfile.buy_problem("latas") == "No te alcanza la plata.", "Sin plata no se compra")
+	PlayerProfile.add_money(300)
+	check(PlayerProfile.buy("latas"), "Con plata se compra")
+	check(PlayerProfile.money == 200, "Se descuenta el precio (%d)" % PlayerProfile.money)
+	check(PlayerProfile.cans_per_chapter() == 6, "La bolsa de latas da 3 más")
+	check(PlayerProfile.has_achievement("cliente"), "Primera compra: logro Cliente frecuente")
+	check(PlayerProfile.buy_problem("latas") == "Ya lo tienes.", "No se compra dos veces")
+	PlayerProfile.add_xp(100000)
+	check(PlayerProfile.level() == Chapters.LEVELS.size(), "Hay un nivel máximo (%d)" % PlayerProfile.level())
+	check(is_equal_approx(PlayerProfile.level_progress(), 1.0), "En el máximo la barra está llena")
+	check(PlayerProfile.has_achievement("nivel_5"), "Llegar al nivel 5 da logro")
+
+
+func test_profile_save_and_corrupt_file() -> void:
+	GameSession.save_enabled = true
+	PlayerProfile.reset()
+	PlayerProfile.add_money(500)
+	PlayerProfile.buy("tenis")
+	PlayerProfile.find_collectible("parques")
+	PlayerProfile.complete_chapter("malentendido", {"time": 300.0, "rank": Chapters.RANKS[1], "hints": 1, "caught": 0, "chased": true})
+	var xp := PlayerProfile.xp
+	PlayerProfile.reset()
+	PlayerProfile.load_profile()
+	check(PlayerProfile.xp == xp and xp > 0, "La XP se guarda (%d)" % PlayerProfile.xp)
+	check(PlayerProfile.has_item("tenis"), "Los objetos comprados se guardan")
+	check(PlayerProfile.has_collectible("parques"), "Las postales se guardan")
+	check(PlayerProfile.is_chapter_done("malentendido"), "Los capítulos terminados se guardan")
+	check(PlayerProfile.is_chapter_unlocked("robo_plaza"), "Y desbloquean el siguiente")
+	var f := FileAccess.open(TEST_PROFILE, FileAccess.WRITE)
+	f.store_string("[perfil\nesto = no [sirve")
+	f.close()
+	PlayerProfile.load_profile()
+	check(PlayerProfile.xp == 0 and not PlayerProfile.is_chapter_done("malentendido"), "Un perfil dañado empieza de cero")
+	check(FileAccess.file_exists(TEST_PROFILE + ".bad"), "El perfil dañado se aparta como .bad")
+
+
+func test_chapter_rewards_and_unlocks() -> void:
+	PlayerProfile.reset()
+	check(PlayerProfile.is_chapter_unlocked("malentendido") and not PlayerProfile.is_chapter_unlocked("robo_plaza"),
+			"Al empezar solo está el capítulo 1")
+	var r := PlayerProfile.complete_chapter("malentendido", {"time": 500.0, "rank": Chapters.RANKS[0], "hints": 0, "caught": 0, "chased": false})
+	check(r["first"], "Primera vez")
+	check(r["lines"].size() == 4, "Bonos: capítulo, sin pistas, sin atrapar y sin persecución (%d)" % r["lines"].size())
+	check(r["xp"] == 600 + 100 + 150 + 200, "XP total correcta (%d)" % r["xp"])
+	check(r["money"] == 150 + 50, "Dinero del capítulo más el bono por rango (%d)" % r["money"])
+	check("caso_cerrado" in r["achievements"] and "fantasma" in r["achievements"] and "impecable" in r["achievements"],
+			"Da los logros del capítulo (%s)" % [r["achievements"]])
+	check(PlayerProfile.is_chapter_unlocked("robo_plaza"), "Se desbloquea el capítulo 2")
+	check(PlayerProfile.next_chapter() == "robo_plaza", "El siguiente es el 2")
+	var again := PlayerProfile.complete_chapter("malentendido", {"time": 900.0, "rank": Chapters.RANKS[2], "hints": 5, "caught": 2, "chased": true})
+	check(not again["first"] and again["xp"] == int(600 * PlayerProfile.REPLAY_FACTOR), "Repetir da menos (%d)" % again["xp"])
+	var rec: Dictionary = PlayerProfile.chapters["malentendido"]
+	check(is_equal_approx(float(rec["time"]), 500.0) and rec["rank"] == Chapters.RANKS[0], "Se conserva el mejor tiempo y rango")
+	for c: Dictionary in Chapters.LIST:
+		var steps := EscapeStory.STEPS if c["id"] == Chapters.FIRST else ChapterStory.steps(c["id"])
+		check(steps.size() >= 4, "El capítulo %s tiene objetivos" % c["id"])
+		for st: Dictionary in steps:
+			check((st["hints"] as Array).size() == 3, "%s/%s tiene tres pistas" % [c["id"], st["id"]])
+			for req: String in st["requires"]:
+				check(steps.any(func(o: Dictionary) -> bool: return o["id"] == req), "%s/%s requiere algo que existe" % [c["id"], st["id"]])
+	for id: String in ChapterStory.ITEMS:
+		check(ItemCatalog.has(id) and ItemCatalog.item(id).has("icon"), "El objeto %s está en el catálogo" % id)
+
+
+# ---------------------------------------------------------------------------
+# Aventura: búsqueda, latas y movimiento
+# ---------------------------------------------------------------------------
+func test_wanted_levels_decay_and_disguise() -> void:
+	await spawn_world(false)
+	var w := world.mission.wanted
+	check(w.level == 0 and world.hud._wanted_name.text == "Tranquilo", "Se empieza tranquilo")
+	w.report(40.0)
+	check(w.level == 2, "Un aviso sube la búsqueda (%d)" % w.level)
+	await frames(2)
+	check(world.hud._wanted_name.text == "Búsqueda", "El HUD muestra el nivel (%s)" % world.hud._wanted_name.text)
+	var before := w.heat
+	await seconds(1.0)
+	check(w.heat < before - 3.0, "Sin que nadie te vea, baja (%.1f → %.1f)" % [before, w.heat])
+	check(await wait_for(func() -> bool: return w.level == 0, 12.0), "Termina en Tranquilo")
+	w.set_level(3)
+	w.disguise()
+	check(w.level == 1, "El disfraz baja dos niveles (%d)" % w.level)
+	w.set_level(3)
+	world.mission._on_disguise()
+	check(w.level == 3, "Sin chaqueta ni impermeable no hay disfraz")
+	PlayerProfile.add_money(300)
+	PlayerProfile.buy("chaqueta")
+	world.mission._on_disguise()
+	check(w.level == 1 and world.mission.jacket_used, "La chaqueta reversible disfraza una vez")
+	w.set_level(3)
+	world.mission._on_disguise()
+	check(w.level == 3, "La chaqueta no sirve dos veces en el mismo capítulo")
+	w.set_level(3)
+	w.clear()
+	await frames(2)
+	check(PlayerProfile.has_achievement("escapista"), "Bajar de Persecución a Tranquilo da el logro")
+
+
+func test_wanted_reinforcements() -> void:
+	await spawn_world(true)
+	await seconds(Mission.GRACE_SECONDS + 0.2)
+	var m := world.mission
+	var n := m.officers.size()
+	m.wanted.set_level(3)
+	await frames(3)
+	check(m.officers.size() == n + 1, "En Persecución llega un refuerzo (%d → %d)" % [n, m.officers.size()])
+	check(m.officers[-1].is_in_group("reinforcement"), "Es un refuerzo")
+	m.wanted._reinforce_timer = 0.0
+	m.wanted.set_level(3)
+	await frames(3)
+	m.wanted._reinforce_timer = 0.0
+	await frames(3)
+	check(m.wanted.reinforcements.size() == WantedSystem.MAX_REINFORCEMENTS, "Hay un máximo de refuerzos")
+	m.wanted.clear()
+	for o in m.officers:
+		o.active = false
+	await frames(3)
+	check(m.wanted.reinforcements.is_empty() and m.officers.size() == n, "En Tranquilo se van")
+
+
+func test_can_distracts_officer() -> void:
+	var officer := await isolate_officer(0, Vector3(30, 0.15, 6.0), -PI * 0.5)
+	await place(Vector3(14, 0.15, 6.2), -PI * 0.5)
+	check(officer.state == PoliceOfficer.State.PATROL, "El policía no te ha visto")
+	var cans := player.cans
+	check(cans == PlayerProfile.cans_per_chapter(), "Se empieza con latas (%d)" % cans)
+	await tap("throw")
+	await frames(2)
+	check(player.cans == cans - 1, "Lanzar gasta una lata")
+	check(get_tree().get_nodes_in_group("thrown_can").size() == 1, "La lata vuela")
+	var heard := await wait_for(func() -> bool: return officer.state == PoliceOfficer.State.SEARCH, 3.0)
+	check(heard, "El ruido de la lata lo hace ir a revisar (%s)" % officer.state_name())
+	check(PlayerProfile.has_achievement("distraccion"), "Distraer con una lata da el logro")
+	player.cans = 0
+	await tap("throw")
+	await frames(2)
+	check(player.cans == 0, "Sin latas no se lanza nada")
+
+
+func test_vault_onto_high_box() -> void:
+	await spawn_world()
+	var g := PrototypeBlockBuilder.CURB_HEIGHT
+	var high: Vector3 = world.points["box_10"]
+	await place(high + Vector3(0, 0, -2.0), PI)
+	var top := await _max_floor_height(["move_forward"], ["jump"], 2.0)
+	check(top > g + 0.95, "Salta y trepa la caja de 1 m (y=%.2f)" % top)
+	# Pegado al borde, el jugador encuentra de dónde agarrarse y sube trepando.
+	await place(high + Vector3(0, 0, -1.25), PI)
+	var edge := player.find_vault()
+	check(edge != Vector3.INF and absf(edge.y - (g + 1.0)) < 0.15, "Encuentra el borde de la caja (%s)" % edge)
+	player.state_machine.change_state(&"Vault", {"target": edge})
+	await seconds(1.0)
+	check(player.vault_count >= 1 and player.global_position.y > g + 0.95, "Trepó (y=%.2f)" % player.global_position.y)
+	await place(world.points["box_3"] + Vector3(0, 0, -1.25), PI)
+	check(player.find_vault() == Vector3.INF, "Lo bajito no se trepa: se sube caminando")
+
+
+func test_slide_from_run() -> void:
+	await spawn_world()
+	await place(Vector3(-40, 0.15, 12), PI * 0.5)
+	Input.action_press("move_forward")
+	Input.action_press("run")
+	await seconds(1.2)
+	await tap("crouch")
+	await frames(3)
+	check(player.state_machine.current_name == &"Slide", "Agacharse corriendo desliza (%s)" % player.state_machine.current_name)
+	check(player.crouching, "Deslizándose va agachado")
+	Input.action_release("run")
+	Input.action_release("move_forward")
+	await seconds(1.0)
+	check(player.state_machine.current_name != &"Slide", "El deslizamiento termina solo")
+	check(player.slide_count == 1, "Contó un deslizamiento")
+
+
+func test_collectible_pickup() -> void:
+	await spawn_world()
+	var m := world.mission
+	check(m.collectibles.size() == Chapters.COLLECTIBLES.size(), "Están todas las postales")
+	var c := m.collectibles[0]
+	var id := c.id
+	var money := PlayerProfile.money
+	c.interactable.interact(player)
+	await frames(2)
+	check(PlayerProfile.has_collectible(id), "La postal queda en el perfil")
+	check(PlayerProfile.money == money + 20, "Da dinero")
+	check(not is_instance_valid(c) or not c.visible, "Desaparece al recogerla")
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	await spawn_world()
+	check(world.mission.collectibles.size() == Chapters.COLLECTIBLES.size() - 1, "Una postal recogida no vuelve a aparecer")
+
+
+# ---------------------------------------------------------------------------
+# Aventura: capítulos
+# ---------------------------------------------------------------------------
+func spawn_chapter(id: String, police: bool = false) -> void:
+	PlayerProfile.chapters.clear()
+	for c: Dictionary in Chapters.LIST:
+		if c["id"] == id:
+			break
+		PlayerProfile.chapters[c["id"]] = {"done": true}
+	GameSession.chapter = id
+	await spawn_world(police)
+
+
+func test_chapter2_investigation_and_thief() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := world.mission as RoboPlazaMission
+	check(m != null, "El capítulo 2 crea su misión")
+	check(m.lives == 3 and world.hud._hearts.get_child_count() == 3, "Tres corazones")
+	check(world.hud._cans_label.text == "×3", "El HUD muestra las latas (%s)" % world.hud._cans_label.text)
+	check(m.officers.is_empty(), "De mañana no hay policía hasta que el ladrón grita")
+	for e in m.evidence:
+		check(not e.interactable.enabled, "Las pistas no aparecen antes de hablar con la testigo")
+	m.rosa.interactable.interact(player)
+	await frames(2)
+	check(m.is_done("testigo"), "Habló con Doña Rosa")
+	m.suspects[1].interactable.interact(player)
+	check(not m.is_done("sospechoso") and m.wrong_answers == 0, "Sin pistas no se acusa a nadie")
+	for e in m.evidence:
+		e.interactable.interact(player)
+	await frames(2)
+	check(m.is_done("pistas") and m.inventory.has("boton"), "Encontró las tres pistas")
+	m.suspects[1].interactable.interact(player)
+	check(m.wrong_answers == 1 and not m.is_done("sospechoso"), "Señalar al del señor de chaqueta verde es un error")
+	m.thief.interactable.interact(player)
+	await frames(2)
+	check(m.is_done("sospechoso"), "Identificó al ladrón")
+	check(m.thief.mode == Suspect.Mode.WALK, "El ladrón se va caminando")
+	check(not m.suspects[2].interactable.enabled, "Ya no se puede señalar a nadie más")
+	check(not m.hud_meter().is_empty() and world.hud._meter_box.visible, "El HUD muestra la distancia al ladrón")
+	check(await wait_for(func() -> bool: return m.thief.global_position.distance_to(RoboPlazaMission.THIEF_ROUTE[1]) < 3.0, 8.0),
+			"El ladrón camina por su ruta")
+	# Atajo: lo ponemos en el escondite.
+	m.thief.place_at_hideout()
+	m.thief.reached_hideout.emit()
+	await frames(2)
+	check(m.is_done("seguir"), "Llegar al escondite completa el seguimiento")
+	await place(RoboPlazaMission.BIN + Vector3(1.0, 0, 1.0), 0.0)
+	m._try_take_envelope(player)
+	check(not m.envelope_taken, "Con el ladrón al lado no se puede sacar el sobre")
+	EventBus.noise.emit(m.thief.global_position + Vector3(8, 0, 0), 16.0, "lata")
+	check(m.thief.mode == Suspect.Mode.INVESTIGATE, "La lata lo distrae")
+	check(await wait_for(func() -> bool: return m.thief.global_position.distance_to(RoboPlazaMission.BIN) > 5.0, 6.0),
+			"Se aleja de la caneca")
+	m._try_take_envelope(player)
+	check(m.envelope_taken and m.inventory.has("sobre") and m.is_done("recuperar"), "Recupera el sobre")
+	check(m.wanted.level >= 3, "El ladrón grita y llega la policía (nivel %d)" % m.wanted.level)
+	await place(RoboPlazaMission.ROSA + Vector3(1.2, 0, 0), 0.0)
+	m.rosa.interactable.interact(player)
+	check(not m.finished, "Con la policía detrás, Doña Rosa pide perderla primero")
+	m.wanted.clear()
+	m.rosa.interactable.interact(player)
+	await frames(2)
+	check(m.finished and not m.failed, "Se gana el capítulo 2")
+	check(PlayerProfile.is_chapter_done("robo_plaza"), "Queda superado en el perfil")
+	check(world.overlay.is_showing() and world.overlay._next.visible, "Victoria con botón al capítulo 3")
+
+
+func test_chapter2_follow_fails_when_far() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := world.mission as RoboPlazaMission
+	m.steps_done.append_array(["testigo", "pistas"])
+	m.thief.interactable.interact(player)
+	var checkpoint := m.respawn_point
+	await place(Vector3(-50, 0.15, 50), 0.0)
+	await seconds(RoboPlazaMission.LOST_TIME + 0.5)
+	check(m.wrong_answers == 1, "Quedarse muy lejos hace perderlo")
+	check(player.global_position.distance_to(checkpoint) < 1.5, "Vuelves al punto de control")
+	check(m.thief.path_index <= 1, "El ladrón vuelve a empezar su ruta")
+	check(not m.is_done("seguir"), "El seguimiento sigue pendiente")
+
+
+func test_chapter2_lives_run_out() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := world.mission
+	for i in 2:
+		EventBus.player_caught.emit(null)
+		await frames(2)
+		check(world.overlay.is_showing() and not m.finished, "Atrapado %d: pierde un corazón y sigue" % (i + 1))
+		await seconds(MissionOverlay.CAUGHT_SECONDS + 0.3)
+	check(m.lives == 1 and world.hud._hearts.get_child_count() == 3, "Queda un corazón")
+	EventBus.player_caught.emit(null)
+	await frames(2)
+	check(m.finished and m.failed, "Sin corazones se pierde el capítulo")
+	check(world.overlay._title.text == "Te atraparon demasiadas veces", "Pantalla de derrota (%s)" % world.overlay._title.text)
+	check(world.overlay._again.text == "Reintentar", "Se puede reintentar")
+
+
+func test_chapter3_bodega() -> void:
+	await spawn_chapter("callejon")
+	var m := world.mission as CallejonMission
+	check(m != null, "El capítulo 3 crea su misión")
+	check(m.officers.size() == 3 and m.officers.all(func(o: PoliceOfficer) -> bool: return o is Guard), "Tres vigilantes")
+	check(m.cameras.size() == 2, "Dos cámaras")
+	check(world.has_node("LucesFaroles") and world.get_node("LucesFaroles").get_child_count() > 10, "De noche se prenden los faroles")
+	check(world.sun.light_energy < 0.5, "De noche el sol casi no alumbra")
+	# El galpón tiene la puerta y la rejilla: se llega a la oficina desde la puerta.
+	var map := world.get_world_3d().navigation_map
+	var path := NavigationServer3D.map_get_path(map, world.points["bodega_door"], BodegaBuilder.LIBRO - Vector3(0, 0.8, -1.0), true)
+	check(path.size() > 1 and path[-1].distance_to(BodegaBuilder.LIBRO - Vector3(0, 0.8, -1.0)) < 1.5, "Hay camino de la puerta a la oficina")
+	await place(Vector3(30, 0.15, -30), 0.0)
+	await frames(5)
+	check(m.is_done("entrar"), "Entrar al patio cumple el objetivo")
+	for e in m.evidence:
+		e.interactable.interact(player)
+	await frames(2)
+	check(m.is_done("documentos") and m.is_done("libro"), "Fotos y libro")
+	check(m.inventory.has("foto_placa") and m.inventory.has("libro"), "Van al inventario")
+	check(m.exit_beacon.active, "Se prende el punto de encuentro")
+	m.wanted.set_level(3)
+	await place(CallejonMission.BUS_STOP, 0.0)
+	await frames(3)
+	check(not m.finished, "Con la búsqueda alta Buitrago no se acerca")
+	for o in m.officers:
+		o.active = false
+	m.wanted.clear()
+	await frames(3)
+	check(m.finished and not m.failed, "Con la búsqueda baja, esperar en el paradero gana")
+
+
+func test_security_camera_raises_alarm() -> void:
+	await spawn_chapter("callejon", true)
+	await seconds(Mission.GRACE_SECONDS + 0.2)
+	var m := world.mission as CallejonMission
+	for o in m.officers:
+		o.active = false
+	var cam := m.cameras[0]
+	await place(cam.global_position + Vector3(0, -3.6, 6.0), 0.0)
+	var alarmed := await wait_for(func() -> bool: return m.wanted.level >= 2, 4.0)
+	check(alarmed, "La cámara te graba y suena la alarma (nivel %d, detect %.2f)" % [m.wanted.level, cam.detect])
+	await crouch_in_place()
+	check(m.wanted.level >= 2, "La alarma deja la búsqueda alta")
+
+
+func test_chapter4_chase_and_disguise() -> void:
+	await spawn_chapter("persecucion", true)
+	var m := world.mission as PersecucionMission
+	check(m != null and world.has_node("Lluvia"), "El capítulo 4 es de noche con lluvia")
+	await seconds(Mission.GRACE_SECONDS + 0.3)
+	check(m.wanted.level >= 3, "Empieza con la policía buscándote (nivel %d)" % m.wanted.level)
+	for o in m.officers:
+		o.active = false
+	m._set_police_active(false)
+	await place(world.points["tunnel_inside"], 0.0)
+	await frames(5)
+	check(m.is_done("tunel"), "Llegó al túnel")
+	m.wanted.clear()
+	await frames(3)
+	check(m.is_done("perder") and m.backpack_beacon.active, "Perdió a la policía: aparece la mochila")
+	await place(PersecucionMission.BACKPACK, 0.0)
+	await frames(5)
+	check(m.is_done("mochila") and m.inventory.has("impermeable"), "Recoge el impermeable")
+	check(m.wanted.level == 2, "Al salir te ve una patrulla (nivel %d, calor %.1f)" % [m.wanted.level, m.wanted.heat])
+	world.escape_ui.inventory.open()
+	world.escape_ui.inventory._show("impermeable")
+	check(world.escape_ui.inventory._use.visible and world.escape_ui.inventory._use.text == "Ponértelo", "El inventario ofrece ponérselo")
+	world.escape_ui.inventory._use.pressed.emit()
+	await frames(2)
+	check(m.wanted.level == 0 and not m.inventory.has("impermeable"), "El impermeable baja la búsqueda y se gasta")
+	await place(world.points["meeting_point"], 0.0)
+	await frames(5)
+	check(m.finished and not m.failed, "Llegar al refugio gana el capítulo 4")
+	check(world.overlay.is_showing() and not world.overlay._next.visible, "Es el último capítulo por ahora")
+
+
+func test_continue_saved_chapter() -> void:
+	GameSession.save_enabled = true
+	GameSession.new_game("explorador", "robo_plaza")
+	await spawn_chapter("robo_plaza")
+	var m := world.mission as RoboPlazaMission
+	m.rosa.interactable.interact(player)
+	m.evidence[0].interactable.interact(player)
+	await frames(2)
+	m.save_progress()
+	check(GameSession.saved_summary().begins_with("Cap. 2"), "El resumen dice el capítulo (%s)" % GameSession.saved_summary())
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	GameSession.chapter = Chapters.FIRST
+	GameSession.continue_game()
+	check(GameSession.chapter == "robo_plaza", "Continuar elige el capítulo guardado")
+	await spawn_world(false)
+	m = world.mission as RoboPlazaMission
+	check(m != null and m.is_done("testigo"), "Se recupera el capítulo y el objetivo")
+	check(m.clues_found.size() == 1 and not m.evidence[0].visible and m.evidence[1].interactable.enabled,
+			"Se recuperan las pistas encontradas y las demás siguen a la vista")
+
+
+func test_chapter_select_and_profile_pages() -> void:
+	PlayerProfile.reset()
+	var menu := MainMenu.new()
+	add_child(menu)
+	await frames(2)
+	menu._show_page("chapters", false)
+	await frames(2)
+	var list: Node = (menu._pages["chapters"] as Node).get_node("Lista")
+	check(list.get_child_count() == Chapters.LIST.size(), "Una tarjeta por capítulo")
+	check(not (list.get_child(0) as Button).disabled and (list.get_child(1) as Button).disabled, "Solo el capítulo 1 está abierto")
+	PlayerProfile.chapters["malentendido"] = {"done": true, "rank": Chapters.RANKS[0], "time": 400.0}
+	menu._show_page("chapters", false)
+	await frames(2)
+	check(not (list.get_child(1) as Button).disabled, "Al terminar el 1 se abre el 2")
+	menu._open_profile("shop")
+	await frames(2)
+	var profile := menu._pages["profile"] as ProfilePanel
+	check(profile.visible and profile.tab == "shop", "Se abre la tienda")
+	check(profile._list.get_child_count() == Chapters.SHOP.size(), "Todos los objetos de la tienda")
+	var buy := profile._list.get_child(0).get_child(2) as Button
+	check(buy.disabled and buy.tooltip_text == "No te alcanza la plata.", "Comprar sin plata está desactivado con el motivo")
+	PlayerProfile.add_money(1000)
+	await frames(1)
+	buy = profile._list.get_child(0).get_child(2) as Button
+	buy.pressed.emit()
+	await frames(1)
+	check(PlayerProfile.has_item(Chapters.SHOP.keys()[0]), "El botón compra")
+	profile.show_tab("achievements")
+	await frames(1)
+	check(profile._list.get_child_count() >= Chapters.ACHIEVEMENTS.size() + 1, "La pestaña de logros los lista")
+	menu.queue_free()
+	await frames(1)
+
+
+func test_victory_screen_rewards() -> void:
+	PlayerProfile.reset()
+	await spawn_world()
+	var m := world.mission as EscapeMission
+	await solve_everything_but_deduction()
+	m.submit_deduction([1, 1, 2])
+	await frames(2)
+	check(world.overlay.is_showing(), "Pantalla de victoria")
+	check(world.overlay._rewards.visible and world.overlay._rewards.get_child_count() >= 3, "Muestra las recompensas")
+	check(world.overlay._next.visible and world.overlay._next.text == "Siguiente capítulo", "Botón al capítulo 2")
+	check(PlayerProfile.money > 0 and PlayerProfile.xp > 0, "El perfil recibe XP y dinero")
+	check(PlayerProfile.is_chapter_unlocked("robo_plaza"), "Se abre el capítulo 2")

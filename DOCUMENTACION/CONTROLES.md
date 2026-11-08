@@ -1,6 +1,6 @@
 # Controles
 
-Estado: versión 0.4.0. Solo se listan como activos los controles que ya hacen algo.
+Estado: versión 0.5.0. Solo se listan como activos los controles que ya hacen algo.
 
 ## Teclado y ratón
 
@@ -8,8 +8,10 @@ Estado: versión 0.4.0. Solo se listan como activos los controles que ya hacen a
 |---|---|---|
 | Moverse | W A S D (también flechas) | Activo |
 | Correr (gasta resistencia) | Shift | Activo |
-| Saltar (mantener = más alto) | Espacio | Activo |
-| Agacharse / levantarse (dentro de un matorral: esconderse) | C | Activo |
+| Saltar (mantener = más alto); contra un muro bajo, trepar | Espacio | Activo |
+| Agacharse / levantarse (dentro de un matorral: esconderse); corriendo, deslizarse | C | Activo |
+| Lanzar una lata para distraer | G | Activo |
+| Disfraz (chaqueta de la tienda o impermeable del capítulo 4) | Q | Activo |
 | Mover la cámara | Ratón (haz clic en el juego para capturarlo) | Activo |
 | Pausa | Esc | Activo |
 | Medidor de rendimiento | F3 | Activo |
@@ -35,6 +37,8 @@ En el navegador, Esc libera el ratón y abre la pausa. Para volver a capturarlo,
 | Interactuar | X |
 | Inventario | Y |
 | Pista | RB |
+| Lanzar lata | Cruceta derecha |
+| Disfraz | Cruceta izquierda |
 | Pausa | Start |
 
 ## Pantalla táctil
@@ -46,6 +50,7 @@ En el navegador, Esc libera el ratón y abre la pausa. Para volver a capturarlo,
 | Usar | Interactuar (se ilumina cuando hay algo cerca) |
 | Saltar / Agachar | Saltar / agacharse o esconderse |
 | Correr | Se queda activo hasta volver a tocarlo |
+| Lata / Disfraz | Lanzar una lata / ponerse el disfraz |
 | Arriba a la derecha | Inventario, pistas, sonido y pausa |
 
 Se activa sola en pantallas táctiles. Configuración → Interfaz → Controles táctiles: Automático, Siempre o Nunca.

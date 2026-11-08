@@ -6,7 +6,7 @@ extends Control
 
 const SIZE := 190.0
 
-var mission: EscapeMission
+var mission: Mission
 var _footprints: Array = []
 var _half := 60.0
 

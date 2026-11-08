@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Escape de Bucaramanga"
 config/description="Escape room urbano en tercera persona inspirado en Bucaramanga."
-config/version="0.4.0"
+config/version="0.5.0"
 run/main_scene="res://scenes/ui/main_menu.tscn"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="Escape de Bucaramanga"
@@ -27,6 +27,7 @@ EventBus="*res://src/core/event_bus.gd"
 Settings="*res://src/core/settings.gd"
 InputConfig="*res://src/core/input_config.gd"
 GameSession="*res://src/core/game_session.gd"
+PlayerProfile="*res://src/gameplay/player_profile.gd"
 AudioManager="*res://src/audio/audio_manager.gd"
 SceneLoader="*res://src/core/scene_loader.gd"
 

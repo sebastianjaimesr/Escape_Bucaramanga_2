@@ -7,6 +7,8 @@ signal hint_revealed(step_id: String, text: String)
 
 ## Paso -> cuántas pistas se revelaron (0..3).
 var revealed: Dictionary = {}
+## Devuelve el paso con sus pistas a partir de su id (lo pone la misión).
+var lookup: Callable = EscapeStory.step
 
 
 func revealed_count(step_id: String) -> int:
@@ -14,17 +16,17 @@ func revealed_count(step_id: String) -> int:
 
 
 func available(step_id: String) -> int:
-	return (EscapeStory.step(step_id).get("hints", []) as Array).size()
+	return (lookup.call(step_id).get("hints", []) as Array).size()
 
 
 func revealed_hints(step_id: String) -> PackedStringArray:
-	var hints: Array = EscapeStory.step(step_id).get("hints", [])
+	var hints: Array = lookup.call(step_id).get("hints", [])
 	return PackedStringArray(hints.slice(0, revealed_count(step_id)))
 
 
 ## Revela la siguiente pista del paso. Devuelve "" si ya no quedan.
 func reveal_next(step_id: String) -> String:
-	var hints: Array = EscapeStory.step(step_id).get("hints", [])
+	var hints: Array = lookup.call(step_id).get("hints", [])
 	var n := revealed_count(step_id)
 	if n >= hints.size():
 		return ""
@@ -48,5 +50,5 @@ func from_data(data: Dictionary) -> void:
 	revealed.clear()
 	for k: Variant in data:
 		var id := str(k)
-		if not EscapeStory.step(id).is_empty():
+		if not lookup.call(id).is_empty():
 			revealed[id] = clampi(int(data[k]), 0, available(id))

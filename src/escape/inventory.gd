@@ -1,12 +1,14 @@
 class_name Inventory
 extends RefCounted
 ## Objetos que lleva Sebastián. Guarda solo identificadores; los nombres y
-## textos están en EscapeStory.ITEMS.
+## textos están en ItemCatalog (EscapeStory.ITEMS y ChapterStory.ITEMS).
 
 signal changed
 signal item_added(id: String)
 
 var items: Array[String] = []
+## Dice si un identificador es un objeto válido (para ignorar datos viejos o dañados).
+var catalog: Callable = ItemCatalog.has
 
 
 func add(id: String) -> bool:
@@ -50,6 +52,6 @@ func to_data() -> Array:
 func from_data(data: Array) -> void:
 	items.clear()
 	for id: Variant in data:
-		if EscapeStory.ITEMS.has(str(id)) and not str(id) in items:
+		if catalog.call(str(id)) and not str(id) in items:
 			items.append(str(id))
 	changed.emit()

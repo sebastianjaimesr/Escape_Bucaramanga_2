@@ -1,5 +1,45 @@
 # Cambios
 
+## 0.5.0 — Aventura urbana en capítulos (8 de noviembre de 2026)
+
+Detalle del diseño y los sistemas: [DOCUMENTACION/AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md).
+
+### Campaña
+- Cuatro capítulos que se desbloquean en orden. El 1 es el escape room de la 0.4 sin cambios.
+- **Capítulo 2 · El robo de la plaza** (de mañana): testigo, tres pistas, identificar al ladrón entre cuatro personas, seguirlo sin que te vea (te ve si mira hacia atrás; lo pierdes a más de 30 m), distraerlo con una lata para sacar el sobre de la natillera y volver sin que te atrape la policía.
+- **Capítulo 3 · Sombras en el callejón** (de noche): bodega nueva en el patio noreste con puerta, rejilla para entrar agachado y oficina; tres vigilantes, dos cámaras de seguridad, tres documentos para fotografiar y el libro de cuentas.
+- **Capítulo 4 · Persecución urbana** (de noche, con lluvia): empieza en Persecución; túnel, perder a la policía, mochila con impermeable (disfraz) y refugio.
+- Tres corazones y puntos de control desde el capítulo 2; sin corazones, derrota con «Reintentar».
+
+### Progresión (se guarda aparte, en `user://perfil.cfg`)
+- 10 niveles con XP por objetivo, capítulo, bonos, logros y postales; un punto de habilidad por nivel.
+- 6 habilidades, tienda con 4 objetos, 12 logros y 10 postales con datos de Bucaramanga.
+- Recompensas al terminar cada capítulo (XP, dinero y reputación); repetir paga el 25 %.
+
+### Jugabilidad
+- Nivel de búsqueda de 5 niveles (Tranquilo a Cerco) con refuerzos desde Persecución.
+- Latas para distraer (G), cámaras de seguridad, disfraz (Q).
+- Trepar muros bajos saltando contra ellos y deslizarse agachándose al correr.
+
+### Gráficos y audio
+- Mañana, tarde y noche con faroles encendidos; lluvia con partículas.
+- Bodega, camión, contenedores y cajas; columnas de luz para los puntos de encuentro.
+- 13 efectos nuevos (salto, aterrizaje, deslizada, lanzamiento, lata, moneda, alarma, nivel, punto de control, logro, cámara, compra) y ambiente de lluvia, todos sintetizados.
+
+### Interfaz
+- Portada con la campaña, selección de capítulos, páginas de perfil y habilidades, tienda y logros.
+- HUD con corazones, latas, nivel de búsqueda, barra del capítulo, nivel/XP/dinero, aviso de nivel nuevo y de logros.
+- Victoria con el detalle de recompensas y «Siguiente capítulo».
+- Pausa con el perfil y la tienda, «Volver al punto de control» y «Reiniciar el capítulo».
+- Botones táctiles Lata y Disfraz.
+
+### Correcciones
+- «Jugar otra vez» y «Reiniciar» cargaban siempre el capítulo 1 y su título; ahora usan el capítulo actual.
+- Activar o desactivar un marcador dentro de su propia señal de entrada daba error de física; ahora se aplica al final del cuadro.
+
+### Pruebas
+- 18 pruebas nuevas (72 en total). `TEST_ONLY=...` corre solo las indicadas. Capturas nuevas con `tests/adventure_screenshots.tscn`.
+
 ## 0.4.0 — Rediseño como escape room (5 de noviembre de 2026)
 
 ### Gameplay

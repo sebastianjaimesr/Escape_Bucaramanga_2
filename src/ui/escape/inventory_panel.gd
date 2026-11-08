@@ -4,7 +4,7 @@ extends ModalPanel
 ## descripción (ahí están las pistas de los acertijos) y, si se puede usar,
 ## el botón Usar (el celular bloqueado abre el patrón).
 
-var mission: EscapeMission
+var mission: Mission
 var _grid: GridContainer
 var _detail_icon: ItemIcon
 var _detail_name: Label
@@ -17,7 +17,7 @@ var _row: BoxContainer
 var _detail: PanelContainer
 
 
-func _init(w: PrototypeWorld, m: EscapeMission) -> void:
+func _init(w: PrototypeWorld, m: Mission) -> void:
 	super(w)
 	mission = m
 
@@ -37,7 +37,7 @@ func build() -> void:
 	_grid.add_theme_constant_override("h_separation", 10)
 	_grid.add_theme_constant_override("v_separation", 10)
 	left.add_child(_grid)
-	_empty = UiStyle.label("Todavía no tienes pruebas. Explora la manzana: busca brillos dorados.", 16, UiStyle.TEXT_DIM)
+	_empty = UiStyle.label("Todavía no tienes nada. Explora la manzana: busca los brillos dorados.", 16, UiStyle.TEXT_DIM)
 	_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_empty.custom_minimum_size = Vector2(320, 0)
 	left.add_child(_empty)
@@ -93,7 +93,7 @@ func first_focus() -> Control:
 
 
 func _item_card(id: String) -> Button:
-	var data := EscapeStory.item(id)
+	var data := mission.item_data(id)
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(102, 102)
 	b.tooltip_text = data.get("name", id)
@@ -113,10 +113,11 @@ func _show(id: String) -> void:
 	_selected = id
 	for k: String in _cards:
 		(_cards[k] as Button).set_pressed_no_signal(k == id)
-	var data := EscapeStory.item(id)
+	var data := mission.item_data(id) if id != "" else {}
 	_detail_icon.visible = id != ""
 	_detail_icon.set_kind(data.get("icon", ""))
 	_detail_name.text = data.get("name", "Nada seleccionado")
 	_detail_text.text = data.get("text", "Elige una prueba para examinarla.")
-	_use.visible = data.has("use") and not mission.is_done("desbloqueo")
-	_use.text = "Desbloquear" if data.get("use", "") == "phone" else "Usar"
+	var use := str(data.get("use", ""))
+	_use.visible = use == "disguise" or (use == "phone" and not mission.is_done("desbloqueo"))
+	_use.text = {"phone": "Desbloquear", "disguise": "Ponértelo"}.get(use, "Usar")

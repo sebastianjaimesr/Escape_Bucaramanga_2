@@ -25,6 +25,9 @@ func physics_update(delta: float) -> StringName:
 	player.apply_horizontal(delta, player.air_max_speed)
 	if player.is_on_ceiling():
 		player.velocity.y = minf(player.velocity.y, 0.0)
+	var climb := air_transitions()
+	if climb != &"":
+		return climb
 	if player.velocity.y <= 0.0:
 		return &"Fall"
 	return &""
