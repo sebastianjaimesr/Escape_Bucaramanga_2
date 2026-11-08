@@ -209,6 +209,9 @@ func _hiding_spots() -> void:
 		[Vector3(-9.5, G, 27.0), Vector3(1.4, 1.25, 3.2)],
 		[Vector3(-44.0, G, 30.0), Vector3(3.4, 1.3, 1.6)],
 		[Vector3(-6.7, G, -48.0), Vector3(1.2, 1.25, 3.0)],
+		# Patios de atrás: junto a la bodega (noreste) y el escondite del ladrón (noroeste).
+		[Vector3(24.5, G, -46.0), Vector3(1.4, 1.25, 3.2)],
+		[Vector3(-25.0, G, -40.0), Vector3(1.4, 1.25, 3.2)],
 	]:
 		var pos: Vector3 = spec[0]
 		var size: Vector3 = spec[1]

@@ -42,6 +42,7 @@ func build() -> Dictionary:
 	_build_perimeter()
 	_build_street_props()
 	PrototypeProps.new(self).build()
+	BodegaBuilder.new(self).build()
 	_build_windows()
 	_flush_batches()
 	_build_bounds()
@@ -320,6 +321,8 @@ func _build_street_props() -> void:
 
 
 func _lamp(pos: Vector3) -> void:
+	if not points.has("lamps"):
+		points["lamps"] = []
 	add_cylinder(0.07, 5.5, pos + Vector3(0, 2.75, 0), "metal", true)
 	add_cylinder(0.12, 0.6, pos + Vector3(0, 0.3, 0), "metal", false)
 	# El brazo apunta hacia la calle más cercana.
@@ -331,6 +334,8 @@ func _lamp(pos: Vector3) -> void:
 	arm.position = pos + Vector3(0, 5.45, 0) + to_street * 0.55
 	add_box(Vector3(0.45, 0.12, 0.3), pos + Vector3(0, 5.4, 0) + to_street * 1.1, "metal", false)
 	add_box(Vector3(0.35, 0.04, 0.2), pos + Vector3(0, 5.33, 0) + to_street * 1.1, "bulb", false)
+	# Donde va la luz de noche (TimeOfDay).
+	(points["lamps"] as Array).append(pos + Vector3(0, 5.2, 0) + to_street * 1.1)
 
 
 func _tree(pos: Vector3) -> void:

@@ -1,7 +1,8 @@
 class_name PrototypeWorld
 extends Node3D
-## Escena del prototipo de la Fase 2: manzana de prueba, luz de día, jugador,
-## cámara en tercera persona, HUD, pausa y perfiles de calidad.
+## Escena del juego: la manzana, la hora del día del capítulo, el jugador, la
+## cámara en tercera persona, la misión del capítulo elegido (GameSession.chapter),
+## el HUD, la pausa, los paneles y los controles táctiles.
 
 const PLAYER_SCENE := "res://scenes/player/player.tscn"
 const FALL_RESET_Y := -25.0
@@ -14,7 +15,7 @@ var sun: DirectionalLight3D
 var hud: Hud
 var pause_menu: PauseMenu
 var navigation: NavigationRegion3D
-var mission: EscapeMission
+var mission: Mission
 var overlay: MissionOverlay
 var escape_ui: EscapeUi
 var touch: TouchControls
@@ -30,6 +31,8 @@ func _ready() -> void:
 	var builder := PrototypeBlockBuilder.new(self)
 	points = builder.build()
 	navigation = NavigationBuilder.bake(self, builder.root, PrototypeBlockBuilder.HALF_SIZE)
+	var chapter := Chapters.get_chapter(GameSession.chapter)
+	TimeOfDay.apply(self, str(chapter.get("time", "tarde")), bool(chapter.get("rain", false)))
 	player = (load(PLAYER_SCENE) as PackedScene).instantiate()
 	add_child(player)
 	player.teleport(points["spawn"], points["spawn_yaw"])
@@ -38,7 +41,7 @@ func _ready() -> void:
 	add_child(camera_rig)
 	camera_rig.set_target(player)
 	camera_rig.camera.make_current()
-	mission = EscapeMission.new(self)
+	mission = Chapters.create_mission(GameSession.chapter, self)
 	mission.police_enabled = police_enabled
 	add_child(mission)
 	hud = Hud.new()
@@ -163,9 +166,15 @@ func apply_quality() -> void:
 	QualityProfiles.apply(profile, get_viewport(), environment, sun, camera_rig.camera)
 
 
+## Vuelve al último punto de control del capítulo (o al inicio si no hay misión).
 func respawn() -> void:
-	player.teleport(points["spawn"], points["spawn_yaw"])
-	camera_rig.yaw = points["spawn_yaw"]
+	var pos: Vector3 = points["spawn"]
+	var yaw: float = points["spawn_yaw"]
+	if mission != null and mission.respawn_point != Vector3.ZERO and not mission.steps_done.is_empty():
+		pos = mission.respawn_point
+		yaw = mission.respawn_yaw
+	player.teleport(pos, yaw)
+	camera_rig.yaw = yaw
 	camera_rig.snap()
 
 

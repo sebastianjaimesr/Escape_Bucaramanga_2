@@ -231,6 +231,25 @@ def ambient_city():
     return seamless(x, 3.0)
 
 
+def ambient_rain():
+    """Aguacero: ruido rosado filtrado, gotas sueltas y algún trueno lejano."""
+    sec = 30.0
+    t = t_axis(sec)
+    noise = rng.normal(0, 1, len(t))
+    hiss = (lowpass_fast(noise, 4500) - lowpass_fast(noise, 600)) * 0.35
+    body = lowpass_fast(rng.normal(0, 1, len(t)), 900) * 1.2
+    x = (hiss + body) * (0.85 + 0.15 * np.sin(2 * np.pi * t / sec * 2))
+    for _ in range(220):
+        at = rng.uniform(0, sec - 0.1)
+        add(x, tick(rng.uniform(0.03, 0.09), 0.03, rng.uniform(2500, 7000)), at)
+    for at in (6.0, 21.0):
+        d = 4.0
+        tt = t_axis(d)
+        thunder = lowpass_fast(rng.normal(0, 1, len(tt)), 140) * 5 * np.exp(-tt * 1.1) * np.minimum(1, tt * 6)
+        add(x, thunder, at)
+    return seamless(x, 3.0)
+
+
 # ---------------------------------------------------------------------------
 # Efectos
 # ---------------------------------------------------------------------------
@@ -273,6 +292,32 @@ def sfx_all():
               [(0.1 + k * 0.12, tone(midi(n), 1.6, 0.22, 2.0)) for k, n in enumerate([62, 66, 69, 74, 78, 81])])
     out["win"] = reverb(win, 0.4)
     out["lose"] = reverb(seq([(k * 0.28, tone(midi(n), 1.0, 0.25, 3)) for k, n in enumerate([62, 61, 58, 53])]), 0.35)
+    # Movimiento: salto, aterrizaje y deslizada (ruido filtrado con envolvente corta).
+    def whoosh(sec, f0, f1, amp):
+        n = int(sec * SR)
+        tt = np.arange(n) / SR
+        cut = np.linspace(f0, f1, n)
+        w = np.zeros(n)
+        raw = rng.normal(0, 1, n)
+        for i in range(0, n, 256):
+            w[i:i + 256] = lowpass_fast(raw[i:i + 256], cut[i])
+        return w * np.sin(np.pi * tt / sec) * amp
+    out["jump"] = seq([(0.0, whoosh(0.18, 800, 2400, 0.5)), (0.0, kick(0.25, 0.08, 220, 120))])
+    out["land"] = seq([(0.0, kick(0.6, 0.18, 120, 50)), (0.0, tick(0.3, 0.06, 1500))])
+    out["slide"] = whoosh(0.6, 2200, 700, 0.45)
+    out["throw"] = whoosh(0.22, 600, 3000, 0.45)
+    can_t = t_axis(0.5)
+    can = sum(np.sin(2 * np.pi * f * can_t) * np.exp(-can_t * d) for f, d in ((1320, 9), (2210, 12), (3410, 16))) * 0.18
+    out["can"] = seq([(0.0, tick(0.6, 0.03, 7000)), (0.0, can), (0.16, can * 0.5), (0.27, can * 0.25)])
+    out["coin"] = reverb(seq([(0.0, tone(midi(88), 0.25, 0.25, 10)), (0.07, tone(midi(93), 0.6, 0.25, 5))]), 0.25)
+    out["alarm"] = seq([(k * 0.32, tone(1100 if k % 2 == 0 else 820, 0.3, 0.22, 1.5, (1.0, 0.6, 0.3))) for k in range(6)])
+    out["levelup"] = reverb(seq([(k * 0.1, tone(midi(n), 1.2, 0.22, 2.5)) for k, n in enumerate([67, 71, 74, 79, 83, 86])]), 0.45)
+    out["checkpoint"] = reverb(seq([(0.0, tone(midi(76), 0.7, 0.25, 4)), (0.1, tone(midi(83), 0.9, 0.22, 3.5))]), 0.35)
+    out["achievement"] = reverb(seq([(0.0, pad([60, 64, 67, 72], 1.8, 1800, 0.2))] +
+                                    [(0.05 + k * 0.09, tone(midi(n), 1.0, 0.2, 3)) for k, n in enumerate([72, 76, 79, 84])]), 0.45)
+    out["camera"] = seq([(0.0, tick(0.7, 0.03, 6000)), (0.05, kick(0.3, 0.05, 900, 400)), (0.09, tick(0.4, 0.05, 3000))])
+    out["buy"] = reverb(seq([(0.0, tick(0.4, 0.03, 5000)), (0.03, tone(midi(81), 0.3, 0.2, 8)),
+                             (0.1, tone(midi(86), 0.6, 0.22, 5))]), 0.3)
     return out
 
 
@@ -282,6 +327,7 @@ def main():
     write("music_explore", music_explore(), 3)
     write("music_chase", music_chase(), 3)
     write("ambient_city", ambient_city(), 2)
+    write("ambient_rain", ambient_rain(), 2)
     for name, x in sfx_all().items():
         write("sfx_" + name, x, 4)
 

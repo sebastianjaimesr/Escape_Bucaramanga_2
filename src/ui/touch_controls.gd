@@ -3,7 +3,8 @@ extends CanvasLayer
 ## Controles táctiles para celulares y tabletas (multitáctil):
 ## - Mitad izquierda: palanca virtual que aparece donde apoyas el dedo.
 ## - Mitad derecha: arrastrar mueve la cámara.
-## - Botones: Usar (interactuar), Saltar, Agacharse y Correr (se queda activo).
+## - Botones: Usar (interactuar), Saltar, Agacharse, Correr (se queda activo),
+##   Lata (lanzar para distraer) y Disfraz.
 ## Pulsan las mismas acciones del InputMap que el teclado, así que el jugador
 ## no distingue entre uno y otro. Se activan solos en pantallas táctiles o desde
 ## Configuración → Interfaz.
@@ -69,6 +70,8 @@ func _layout() -> void:
 		"jump": {"center": base + Vector2(-big - small - 22, 10), "radius": small, "label": "Saltar", "action": "jump"},
 		"crouch": {"center": base + Vector2(-big * 0.5 - 6, -big - small - 18), "radius": small, "label": "Agachar", "action": "crouch"},
 		"run": {"center": base + Vector2(-big - small * 2.6 - 40, -small * 0.6), "radius": small * 0.86, "label": "Correr", "action": "run"},
+		"throw": {"center": base + Vector2(10, -big - small * 2.0 - 40), "radius": small * 0.8, "label": "Lata", "action": "throw"},
+		"gadget": {"center": base + Vector2(-big - small - 22, -big - small * 2.0 - 30), "radius": small * 0.8, "label": "Disfraz", "action": "gadget"},
 	}
 	_canvas.queue_redraw()
 

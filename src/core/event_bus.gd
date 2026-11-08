@@ -15,3 +15,9 @@ signal hidden_changed(hidden: bool)
 signal evidence_collected(id: String, label: String)
 signal notify(text: String)
 signal mission_completed
+
+# --- Aventura (capítulos, sigilo y progresión) ---
+## Un ruido que la policía y los vigilantes pueden ir a revisar (lata, alarma).
+signal noise(position: Vector3, radius: float, source: String)
+## El jugador escaló algo (para pruebas y efectos).
+signal player_vaulted(height: float)

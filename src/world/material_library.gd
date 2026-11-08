@@ -159,6 +159,49 @@ static func get_material(id: String) -> StandardMaterial3D:
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"test_orange":
 			m = _flat(Color(0.95, 0.45, 0.12), 0.6)
+		"can":
+			m = _flat(Color(0.75, 0.78, 0.8), 0.25)
+			m.metallic = 0.8
+		"neon_pink":
+			m = _emissive(Color(1.0, 0.18, 0.62), 4.0)
+		"neon_cyan":
+			m = _emissive(Color(0.1, 0.85, 1.0), 4.0)
+		"neon_amber":
+			m = _emissive(Color(1.0, 0.62, 0.15), 3.5)
+		"camera_body":
+			m = _flat(Color(0.18, 0.19, 0.21), 0.5)
+			m.metallic = 0.4
+		"camera_cone":
+			m = _emissive(Color(1.0, 0.25, 0.2), 0.8)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color.a = 0.07
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.no_depth_test = false
+		"beacon":
+			m = _emissive(Color(0.35, 0.85, 1.0), 1.4)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color.a = 0.28
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		"corrugated":
+			m = _surface(Color(0.42, 0.46, 0.5), 0.6, 0.25, 3.0)
+			m.metallic = 0.5
+		"container_red":
+			m = _surface(Color(0.62, 0.16, 0.12), 0.65, 0.3, 2.0)
+			m.metallic = 0.4
+		"container_blue":
+			m = _surface(Color(0.12, 0.3, 0.55), 0.65, 0.3, 2.0)
+			m.metallic = 0.4
+		"crate":
+			m = _surface(Color(0.58, 0.45, 0.28), 0.9, 0.3, 2.5)
+		"fence":
+			m = _flat(Color(0.35, 0.37, 0.38), 0.5)
+			m.metallic = 0.6
+		"paper":
+			m = _emissive(Color(0.95, 0.92, 0.8), 0.5)
+		"clue":
+			m = _emissive(Color(0.4, 0.9, 1.0), 1.6)
 		_:
 			if id.begins_with("facade_"):
 				var i := int(id.trim_prefix("facade_")) % FACADE_COLORS.size()

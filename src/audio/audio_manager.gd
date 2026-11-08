@@ -13,9 +13,11 @@ const TRACKS := {
 	"explore": "res://assets/audio/music_explore.ogg",
 	"chase": "res://assets/audio/music_chase.ogg",
 	"ambient": "res://assets/audio/ambient_city.ogg",
+	"rain": "res://assets/audio/ambient_rain.ogg",
 }
 const SFX := ["click", "hover", "key", "pickup", "discover", "unlock", "error", "hint", "open",
-		"alert", "caught", "win", "lose"]
+		"alert", "caught", "win", "lose", "jump", "land", "slide", "throw", "can", "coin", "alarm",
+		"levelup", "checkpoint", "achievement", "camera", "buy"]
 const FADE := 1.6
 const SILENT_DB := -60.0
 const SFX_VOICES := 6
@@ -25,6 +27,7 @@ var _music: Array[AudioStreamPlayer] = []
 var _active := 0
 var _chase: AudioStreamPlayer
 var _ambient: AudioStreamPlayer
+var _rain: AudioStreamPlayer
 var _voices: Array[AudioStreamPlayer] = []
 var _next_voice := 0
 var _streams: Dictionary = {}
@@ -47,6 +50,7 @@ func _ready() -> void:
 	_chase = _player("music")
 	_chase.volume_db = SILENT_DB
 	_ambient = _player("ambient")
+	_rain = _player("ambient")
 	for i in SFX_VOICES:
 		_voices.append(_player("sfx"))
 	apply_volumes()
@@ -148,6 +152,19 @@ func play_ambient(on: bool) -> void:
 		var tw := create_tween()
 		tw.tween_property(_ambient, "volume_db", SILENT_DB, FADE * 0.5)
 		tw.tween_callback(_ambient.stop)
+
+
+## Capa de lluvia sobre el ambiente (capítulos con lluvia).
+func set_rain(on: bool) -> void:
+	if on and not _rain.playing:
+		_rain.stream = stream(TRACKS["rain"], true)
+		_rain.volume_db = SILENT_DB
+		_rain.play()
+		create_tween().tween_property(_rain, "volume_db", -3.0, FADE)
+	elif not on and _rain.playing:
+		var tw := create_tween()
+		tw.tween_property(_rain, "volume_db", SILENT_DB, FADE * 0.5)
+		tw.tween_callback(_rain.stop)
 
 
 func sfx(sound: String, pitch: float = 1.0) -> void:

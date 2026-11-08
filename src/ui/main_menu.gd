@@ -1,13 +1,13 @@
 class_name MainMenu
 extends Control
-## Portada del escape room «Las pruebas del malentendido».
+## Portada de la aventura «Escape de Bucaramanga».
 ##
 ## Fondo animado por shader (atardecer sobre una ciudad entre montañas), título,
-## introducción, botón principal, continuar la partida guardada, cómo se juega,
-## configuración y el expediente del caso (las pruebas que hay que encontrar,
-## todavía sin revelar). Solo se muestran datos que corresponden al juego real:
-## 1 jugador, 7 objetivos, 3 acertijos y el contrarreloj de 15 minutos.
-## En pantallas verticales todo queda en una sola columna.
+## introducción y las páginas: selección de capítulo (los bloqueados dicen qué
+## falta), modo del capítulo 1 (libre o contrarreloj), perfil con habilidades,
+## tienda y logros, cómo se juega y configuración. A la derecha, la campaña:
+## el avance en cada capítulo y el perfil. Solo se muestran datos reales del
+## juego. En pantallas verticales todo queda en una sola columna.
 
 const PROTOTYPE_SCENE := "res://scenes/world/prototype/prototype_world.tscn"
 const BACKDROP_SHADER := "res://src/ui/shaders/title_backdrop.gdshader"
@@ -58,7 +58,11 @@ func _ready() -> void:
 	_left.add_theme_constant_override("separation", 0)
 	_layout.add_child(_left)
 	_pages["home"] = _build_home()
+	_pages["chapters"] = _build_chapters()
 	_pages["modes"] = _build_modes()
+	var profile := ProfilePanel.new()
+	profile.closed.connect(func() -> void: _show_page("home"))
+	_pages["profile"] = profile
 	_pages["howto"] = _build_howto()
 	_settings = SettingsPanel.new()
 	_settings.closed.connect(func() -> void: _show_page("home"))
@@ -102,9 +106,9 @@ func _build_home() -> VBoxContainer:
 	t2.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
 	t2.add_theme_constant_override("shadow_offset_y", 3)
 	col.add_child(t2)
-	var sub := UiStyle.label("Las pruebas del malentendido", 24, UiStyle.ACCENT, 500)
+	var sub := UiStyle.label("Una aventura urbana en cuatro capítulos", 24, UiStyle.ACCENT, 500)
 	col.add_child(sub)
-	var intro := UiStyle.label("Son las 17:42 y alguien acaba de robar en la manzana. Una foto borrosa, una gorra roja… y tu camiseta también es roja. La policía cree que fuiste tú, Sebastián. Encuentra las pruebas, abre lo que está cerrado y reconstruye con tus amigos lo que de verdad pasó, sin dejarte atrapar.", 18, UiStyle.TEXT_DIM)
+	var intro := UiStyle.label("Todo empezó a las 17:42, cuando la policía confundió a Sebastián con un ladrón. Aclararlo fue solo el comienzo: detrás de los robos del barrio hay una red. Investiga, sigue sospechosos, entra de noche a una bodega y escapa bajo la lluvia, con Buitrago, Diaz y Gordo de tu lado.", 18, UiStyle.TEXT_DIM)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.custom_minimum_size = Vector2(300, 0)
 	col.add_child(intro)
@@ -115,15 +119,22 @@ func _build_home() -> VBoxContainer:
 	buttons.add_theme_constant_override("separation", 10)
 	buttons.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	col.add_child(buttons)
-	_play = UiStyle.button("Comenzar la aventura", 340, "primary")
+	_play = UiStyle.button("Jugar", 340, "primary")
 	_play.add_theme_font_size_override("font_size", 20)
 	_play.custom_minimum_size.y = 58
-	_play.pressed.connect(func() -> void: _show_page("modes"))
+	_play.pressed.connect(func() -> void: _show_page("chapters"))
 	buttons.add_child(_play)
 	_continue = UiStyle.button("Continuar", 340)
 	_continue.pressed.connect(_continue_game)
 	buttons.add_child(_continue)
 	_refresh_continue()
+	var prow := HBoxContainer.new()
+	prow.add_theme_constant_override("separation", 10)
+	buttons.add_child(prow)
+	for spec: Array in [["Perfil y habilidades", "skills", 165], ["Tienda", "shop", 80], ["Logros", "achievements", 85]]:
+		var pb := UiStyle.button(spec[0], spec[2])
+		pb.pressed.connect(_open_profile.bind(spec[1]))
+		prow.add_child(pb)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	buttons.add_child(row)
@@ -143,7 +154,8 @@ func _build_home() -> VBoxContainer:
 	chips.add_theme_constant_override("h_separation", 8)
 	chips.add_theme_constant_override("v_separation", 8)
 	col.add_child(chips)
-	for c: String in ["1 jugador", "7 objetivos · 3 acertijos", "Libre o contrarreloj de 15 min", "Teclado, mando o táctil"]:
+	for c: String in ["%d capítulos" % Chapters.LIST.size(), "%d niveles · %d habilidades" % [Chapters.LEVELS.size(), Chapters.SKILLS.size()],
+			"%d logros · %d postales" % [Chapters.ACHIEVEMENTS.size(), Chapters.COLLECTIBLES.size()], "Teclado, mando o táctil"]:
 		chips.add_child(_chip(c))
 	var foot := UiStyle.label("Versión %s · Hecho con Godot · Lugares inspirados en Bucaramanga, no reproducciones exactas. Policía y nombres comerciales ficticios." % ProjectSettings.get_setting("application/config/version"), 13, Color(UiStyle.TEXT_DIM, 0.85))
 	foot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -163,10 +175,95 @@ func _chip(text: String) -> PanelContainer:
 	return p
 
 
+## Selección de capítulo: cada tarjeta dice dónde y cuándo pasa, su mejor
+## resultado y, si está bloqueado, qué hay que terminar antes.
+func _build_chapters() -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	col.add_child(UiStyle.overline("Campaña"))
+	col.add_child(UiStyle.title("Elige un capítulo", 40))
+	if SaveGame.exists():
+		var warn := UiStyle.label("Empezar un capítulo reemplaza la partida que tienes guardada.", 15, UiStyle.WARN)
+		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(warn)
+	var list := VBoxContainer.new()
+	list.name = "Lista"
+	list.add_theme_constant_override("separation", 10)
+	col.add_child(list)
+	var teaser := UiStyle.label(Chapters.NEXT_TEASER, 14, UiStyle.TEXT_DIM)
+	teaser.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(teaser)
+	var back := UiStyle.button("Volver", 160)
+	back.pressed.connect(func() -> void: _show_page("home"))
+	col.add_child(back)
+	return col
+
+
+func _refresh_chapters() -> void:
+	var list := (_pages["chapters"] as Node).get_node("Lista") as VBoxContainer
+	for c in list.get_children():
+		c.queue_free()
+	var times := {"manana": "De mañana", "tarde": "Al atardecer", "noche": "De noche"}
+	for c: Dictionary in Chapters.LIST:
+		var id: String = c["id"]
+		var unlocked := PlayerProfile.is_chapter_unlocked(id)
+		var record: Dictionary = PlayerProfile.chapters.get(id, {})
+		var b := UiStyle.button("", 0)
+		b.custom_minimum_size = Vector2(300, 112)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.disabled = not unlocked
+		b.name = "Capitulo_" + id
+		var inner := VBoxContainer.new()
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		inner.offset_left = 20
+		inner.offset_right = -20
+		inner.alignment = BoxContainer.ALIGNMENT_CENTER
+		var head := UiStyle.label("Capítulo %d · %s" % [int(c["number"]), c["title"]], 20, UiStyle.ACCENT if unlocked else UiStyle.TEXT_DIM, 700)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(head)
+		var when: String = times.get(c["time"], "")
+		if c.get("rain", false):
+			when += ", con lluvia"
+		var meta := "%s · %s · %s" % [c["place"], when, " · ".join(c["tags"])]
+		if not unlocked:
+			meta = "Bloqueado: termina el capítulo %d para jugarlo." % (int(c["number"]) - 1)
+		elif record.get("done", false):
+			var t := int(record.get("time", 0.0))
+			meta = "Superado · %s · mejor tiempo %d:%02d" % [record.get("rank", ""), t / 60, t % 60]
+		var d := UiStyle.label(meta, 14, UiStyle.OK if record.get("done", false) else UiStyle.TEXT_DIM)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(d)
+		var sm := UiStyle.label(c["summary"], 14, UiStyle.TEXT if unlocked else Color(UiStyle.TEXT_DIM, 0.6))
+		sm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(sm)
+		b.add_child(inner)
+		b.pressed.connect(_choose_chapter.bind(id))
+		list.add_child(b)
+
+
+func _choose_chapter(id: String) -> void:
+	if not PlayerProfile.is_chapter_unlocked(id):
+		return
+	if id == Chapters.FIRST:
+		_show_page("modes")
+	else:
+		_start("explorador", id)
+
+
+func _open_profile(t: String) -> void:
+	var profile := _pages["profile"] as ProfilePanel
+	profile.show_tab(t)
+	_show_page("profile")
+	profile.first_focus().grab_focus.call_deferred()
+
+
 func _build_modes() -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 14)
-	col.add_child(UiStyle.overline("Nueva partida"))
+	col.add_child(UiStyle.overline("Capítulo 1 · Las pruebas del malentendido"))
 	col.add_child(UiStyle.title("Elige cómo jugar", 40))
 	if SaveGame.exists():
 		var warn := UiStyle.label("Empezar una partida nueva reemplaza la que tienes guardada.", 15, UiStyle.WARN)
@@ -191,10 +288,10 @@ func _build_modes() -> VBoxContainer:
 		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		inner.add_child(d)
 		b.add_child(inner)
-		b.pressed.connect(_start.bind(id))
+		b.pressed.connect(_start.bind(id, Chapters.FIRST))
 		col.add_child(b)
 	var back := UiStyle.button("Volver", 160)
-	back.pressed.connect(func() -> void: _show_page("home"))
+	back.pressed.connect(func() -> void: _show_page("chapters"))
 	col.add_child(back)
 	return col
 
@@ -205,13 +302,16 @@ func _build_howto() -> VBoxContainer:
 	col.add_child(UiStyle.overline("Instrucciones"))
 	col.add_child(UiStyle.title("Cómo se juega", 40))
 	var sections := [
-		["El caso", "Recorre la manzana y busca los brillos dorados: son pruebas. Examínalas en el inventario, porque sus detalles abren cerraduras. Cuando tengas todo, habla con tus amigos en la zona verde y reconstruyan lo que pasó."],
-		["Acertijos", "Una caja de grabación con clave, el patrón del celular de Diaz y la reconstrucción final. Todo lo que necesitas está en las pruebas o en lo que te dicen tus amigos."],
-		["La policía", "Si te ven, te persiguen. Agáchate entre los matorrales para esconderte; corriendo cerca te oyen. Si te atrapan, vuelves con tus amigos sin perder nada."],
+		["La campaña", "Cuatro capítulos que se desbloquean en orden: aclarar el malentendido, recuperar la plata robada de la natillera, entrar de noche a la bodega de la red y escapar bajo la lluvia. Cada capítulo tiene sus objetivos arriba a la izquierda."],
+		["Pruebas y acertijos", "Los brillos dorados son pruebas u objetos: examínalos en el inventario, porque sus detalles abren cerraduras y señalan culpables."],
+		["La policía y la búsqueda", "Los cuadritos de arriba son el nivel de búsqueda: Tranquilo, Sospecha, Búsqueda, Persecución y Cerco. Sube si te ven o si una cámara te graba, y baja cuando nadie te ve (el doble de rápido escondido en un matorral, agachado). Desde Persecución llegan refuerzos."],
+		["Oportunidades y puntos de control", "Desde el capítulo 2 tienes tres corazones: cada vez que te atrapan pierdes uno y vuelves al último punto de control. Sin corazones, se reintenta el capítulo."],
+		["Moverse por la ciudad", "Salta contra un muro bajo para treparlo. Agáchate mientras corres para deslizarte. Lanza una lata (G) para que los guardias vayan a mirar el ruido. Con la chaqueta de la tienda o el impermeable, Q te disfraza."],
+		["Progreso", "Cada objetivo, logro y postal da XP. Al subir de nivel ganas un punto de habilidad. Con el dinero de los capítulos compras objetos en la tienda. Hay 10 postales escondidas con datos de Bucaramanga."],
 		["Pistas", "Si te atascas, pide una pista (H o el bombillo). Cada objetivo tiene tres: la última da la solución. No restan tiempo, pero cuentan en el resultado."],
-		["Teclado y ratón", "WASD mover · Shift correr · Espacio saltar · C agacharse · E interactuar · Tab inventario · H pista · Esc pausa. Las teclas se pueden cambiar en Configuración."],
-		["Pantalla táctil", "Mitad izquierda: mover. Mitad derecha: girar la cámara. Botones Usar, Saltar, Agachar y Correr. Arriba: inventario, pistas, sonido y pausa."],
-		["Guardado", "La partida se guarda sola al lograr cada objetivo y al pausar. «Continuar» la retoma desde el punto de inicio con todo lo conseguido."],
+		["Teclado y ratón", "WASD mover · Shift correr · Espacio saltar o trepar · C agacharse o deslizarse · E interactuar · G lanzar lata · Q disfraz · Tab inventario · H pista · Esc pausa. Las teclas se pueden cambiar en Configuración."],
+		["Pantalla táctil", "Mitad izquierda: mover. Mitad derecha: girar la cámara. Botones Usar, Saltar, Agachar, Correr, Lata y Disfraz. Arriba: inventario, pistas, sonido y pausa."],
+		["Guardado", "La partida se guarda sola al lograr cada objetivo y al pausar. «Continuar» la retoma con todo lo conseguido. El perfil (nivel, dinero, logros) se guarda aparte y nunca se pierde."],
 	]
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 380)
@@ -234,7 +334,7 @@ func _build_howto() -> VBoxContainer:
 	return col
 
 
-## Expediente del caso: las pruebas que faltan, como tarjetas sin revelar.
+## Campaña: el avance en cada capítulo y un resumen del perfil.
 func _build_case_file() -> Control:
 	var wrap := CenterContainer.new()
 	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -242,34 +342,55 @@ func _build_case_file() -> Control:
 	panel.custom_minimum_size = Vector2(380, 0)
 	wrap.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 14)
+	col.name = "Campana"
+	col.add_theme_constant_override("separation", 12)
 	panel.add_child(col)
+	return wrap
+
+
+func _refresh_case_file() -> void:
+	var col := _case_file.find_child("Campana", true, false) as VBoxContainer
+	for c in col.get_children():
+		c.queue_free()
 	var head := HBoxContainer.new()
 	col.add_child(head)
-	var over := UiStyle.overline("Expediente del caso")
+	var over := UiStyle.overline("Tu campaña")
 	over.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(over)
 	head.add_child(UiStyle.label("17:42", 14, UiStyle.DANGER, 700))
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	col.add_child(grid)
-	for kind: String in ["photo", "receipt", "box", "usb", "phone_locked", "cap"]:
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UiStyle.box(Color(1, 1, 1, 0.035), Color(1, 1, 1, 0.08), 10))
-		card.custom_minimum_size = Vector2(102, 102)
-		var icon := ItemIcon.new(kind, 54, Color(UiStyle.TEXT, 0.4))
-		icon.accent = Color(UiStyle.ACCENT, 0.6)
-		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		card.add_child(icon)
-		grid.add_child(card)
-	var note := UiStyle.label("Cinco pruebas repartidas en una manzana. Una cámara que lo grabó todo. Un celular bloqueado. Y tres amigos que te esperan en la zona verde.", 15, UiStyle.TEXT_DIM)
+	for c: Dictionary in Chapters.LIST:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var done := PlayerProfile.is_chapter_done(c["id"])
+		var open := PlayerProfile.is_chapter_unlocked(c["id"])
+		row.add_child(ItemIcon.new("check" if done else ("dot" if open else "lock"), 22,
+				UiStyle.OK if done else (UiStyle.ACCENT if open else UiStyle.TEXT_DIM)))
+		var l := UiStyle.label("%d. %s" % [int(c["number"]), c["title"]], 16, UiStyle.TEXT if open else UiStyle.TEXT_DIM, 500)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(l)
+		col.add_child(row)
+	var sep := HSeparator.new()
+	col.add_child(sep)
+	col.add_child(UiStyle.label("Nivel %d · %s" % [PlayerProfile.level(), PlayerProfile.level_name()], 18, UiStyle.ACCENT, 600))
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(300, 6)
+	bar.max_value = 1.0
+	bar.value = PlayerProfile.level_progress()
+	bar.show_percentage = false
+	UiStyle.style_bar(bar, UiStyle.ACCENT)
+	col.add_child(bar)
+	var points := "1 punto de habilidad" if PlayerProfile.skill_points == 1 else "%d puntos de habilidad" % PlayerProfile.skill_points
+	var stats := UiStyle.label("$%d · %d/%d logros · %d/%d postales · %s" % [PlayerProfile.money,
+			PlayerProfile.achievements.size(), Chapters.ACHIEVEMENTS.size(), PlayerProfile.collectibles.size(),
+			Chapters.COLLECTIBLES.size(), points], 14, UiStyle.TEXT_DIM)
+	stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stats.custom_minimum_size = Vector2(330, 0)
+	col.add_child(stats)
+	var next := Chapters.get_chapter(PlayerProfile.next_chapter())
+	var note := UiStyle.label("Siguiente: %s. %s" % [next.get("title", ""), next.get("summary", "")], 15, UiStyle.TEXT_DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.custom_minimum_size = Vector2(330, 0)
 	col.add_child(note)
-	return wrap
 
 
 func _show_page(id: String, animate: bool = true) -> void:
@@ -278,8 +399,11 @@ func _show_page(id: String, animate: bool = true) -> void:
 	var page := _pages[id] as Control
 	if animate and not bool(Settings.get_value("interface", "reduce_motion")):
 		UiStyle.fade_in(page, 0.0, 0.0, 0.3)
+	if id == "chapters":
+		_refresh_chapters()
 	if id == "home":
 		_refresh_continue()
+		_refresh_case_file()
 		(_continue if _continue.visible else _play).grab_focus.call_deferred()
 	else:
 		_focus_first_button.call_deferred(page)
@@ -311,9 +435,9 @@ func _refresh_continue() -> void:
 
 func _continue_game() -> void:
 	GameSession.continue_game()
-	SceneLoader.change_scene(PROTOTYPE_SCENE, "Las pruebas del malentendido")
+	SceneLoader.change_scene(PROTOTYPE_SCENE, Chapters.get_chapter(GameSession.chapter).get("title", ""))
 
 
-func _start(mode_id: String) -> void:
-	GameSession.new_game(mode_id)
-	SceneLoader.change_scene(PROTOTYPE_SCENE, "Las pruebas del malentendido")
+func _start(mode_id: String, chapter_id: String = Chapters.FIRST) -> void:
+	GameSession.new_game(mode_id, chapter_id)
+	SceneLoader.change_scene(PROTOTYPE_SCENE, Chapters.get_chapter(chapter_id).get("title", ""))

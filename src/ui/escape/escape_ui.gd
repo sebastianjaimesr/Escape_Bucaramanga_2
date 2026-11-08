@@ -5,7 +5,7 @@ extends Node
 ## Solo hay un panel abierto a la vez.
 
 var world: PrototypeWorld
-var mission: EscapeMission
+var mission: Mission
 var inventory: InventoryPanel
 var hints: HintPanel
 var code_lock: CodeLockPanel
@@ -23,9 +23,12 @@ func _init(w: PrototypeWorld) -> void:
 func _ready() -> void:
 	inventory = InventoryPanel.new(world, mission)
 	hints = HintPanel.new(world, mission)
-	code_lock = CodeLockPanel.new(world, mission)
-	pattern_lock = PatternLockPanel.new(world, mission)
-	deduction = DeductionPanel.new(world, mission)
+	# Los acertijos del capítulo 1 solo existen en EscapeMission (en los demás
+	# capítulos los paneles se crean, pero nunca se piden).
+	var escape := mission as EscapeMission
+	code_lock = CodeLockPanel.new(world, escape)
+	pattern_lock = PatternLockPanel.new(world, escape)
+	deduction = DeductionPanel.new(world, escape)
 	inventory.toggle_action = "inventory"
 	hints.toggle_action = "hint"
 	for p: ModalPanel in [inventory, hints, code_lock, pattern_lock, deduction]:
@@ -38,6 +41,8 @@ func _ready() -> void:
 
 func open_panel(kind: String) -> void:
 	if mission.finished or any_open() or world.pause_menu.visible:
+		return
+	if kind in ["code", "phone", "deduction"] and not mission is EscapeMission:
 		return
 	match kind:
 		"code":

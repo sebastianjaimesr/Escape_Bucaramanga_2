@@ -1,18 +1,21 @@
 class_name Hud
 extends CanvasLayer
-## HUD del escape room:
+## HUD de los capítulos:
 ## - Arriba a la izquierda: objetivo actual y lista de objetivos (los que todavía
 ##   no se pueden hacer se ven como «· · ·»).
-## - Arriba al centro: reloj (cuenta regresiva en contrarreloj) y alerta de la policía.
+## - Arriba al centro: reloj (cuenta regresiva en contrarreloj), oportunidades
+##   (corazones), latas, nivel de búsqueda de la policía y la barra especial
+##   del capítulo (por ejemplo, la distancia al ladrón).
 ## - Arriba a la derecha: botones de inventario, pistas, sonido y pausa (sirven
 ##   con ratón y con el dedo) y el minimapa.
 ## - Abajo: ayuda de controles, resistencia, texto de interacción y avisos.
-## - Al centro: tarjeta animada cuando se descubre una prueba.
+## - Abajo a la derecha: nivel, XP y dinero del perfil (con «+XP» al ganar).
+## - Al centro: tarjeta animada cuando se descubre una prueba y aviso de nivel nuevo.
 
 const HINT_TIME := 16.0
 const DISCOVERY_TIME := 3.2
 
-var mission: EscapeMission
+var mission: Mission
 var escape_ui: EscapeUi
 
 var stamina_bar: ProgressBar
@@ -51,6 +54,24 @@ var _stamina_visible_timer := 0.0
 var _toast_timer := 0.0
 var _toasts: Array[String] = []
 var _last_alert := 0
+var _hearts: HBoxContainer
+var _cans_label: Label
+var _cans_box: HBoxContainer
+var _wanted_box: HBoxContainer
+var _wanted_pips: Array[Panel] = []
+var _wanted_name: Label
+var _meter_box: VBoxContainer
+var _meter_label: Label
+var _meter_bar: ProgressBar
+var _level_label: Label
+var _xp_bar: ProgressBar
+var _money_label: Label
+var _xp_float: Label
+var _banner: PanelContainer
+var _banner_title: Label
+var _banner_text: Label
+var _last_lives := -99
+var _last_wanted := -1
 
 
 func _ready() -> void:
@@ -66,6 +87,8 @@ func _ready() -> void:
 	_build_top_right()
 	_build_bottom_center()
 	_build_discovery()
+	_build_profile()
+	_build_banner()
 	_capture = _outlined("Haz clic para controlar la cámara", 18)
 	UiStyle.place(_capture, Vector4(0.5, 1, 0.5, 1), Vector4(-250, -230, 250, -200))
 	_capture.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -88,7 +111,15 @@ func _ready() -> void:
 	Settings.changed.connect(func(section: String, _k: String, _v: Variant) -> void:
 		if section == "audio":
 			_sound_icon.set_kind("mute" if AudioManager.is_muted() else "sound"))
+	PlayerProfile.xp_gained.connect(_on_xp)
+	PlayerProfile.level_up.connect(_on_level_up)
+	PlayerProfile.money_changed.connect(func(_m: int) -> void: _refresh_profile())
+	PlayerProfile.achievement_unlocked.connect(_on_achievement)
+	_refresh_profile()
 	if mission != null:
+		mission.checkpoint_reached.connect(func(_i: int) -> void:
+			AudioManager.sfx("checkpoint")
+			_on_notify("Punto de control guardado. Si te atrapan, vuelves aquí."))
 		mission.discovered.connect(_on_discovered)
 		mission.step_completed.connect(func(_id: String) -> void: _refresh_steps(true))
 		mission.inventory.changed.connect(_refresh_badge)
@@ -175,7 +206,7 @@ func _build_objective() -> void:
 	if mission == null:
 		panel.visible = false
 		return
-	for s: Dictionary in EscapeStory.STEPS:
+	for s: Dictionary in mission.step_list():
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		var mark := ItemIcon.new("dot", 18, UiStyle.TEXT_DIM)
@@ -193,7 +224,7 @@ func _build_timer() -> void:
 	col.alignment = BoxContainer.ALIGNMENT_BEGIN
 	col.add_theme_constant_override("separation", 6)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UiStyle.place(col, Vector4(0.5, 0, 0.5, 0), Vector4(-210, 20, 210, 140))
+	UiStyle.place(col, Vector4(0.5, 0, 0.5, 0), Vector4(-210, 20, 210, 200))
 	_root.add_child(col)
 	_timer_pill = PanelContainer.new()
 	var sb := UiStyle.box(Color(0.04, 0.045, 0.065, 0.82), UiStyle.PANEL_BORDER, 22)
@@ -212,12 +243,108 @@ func _build_timer() -> void:
 	alert_label = _outlined("", 22)
 	alert_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(alert_label)
+	var status := HBoxContainer.new()
+	status.alignment = BoxContainer.ALIGNMENT_CENTER
+	status.add_theme_constant_override("separation", 14)
+	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(status)
+	_hearts = HBoxContainer.new()
+	_hearts.add_theme_constant_override("separation", 2)
+	_hearts.tooltip_text = "Oportunidades: si te atrapan pierdes una"
+	status.add_child(_hearts)
+	_cans_box = HBoxContainer.new()
+	_cans_box.add_theme_constant_override("separation", 4)
+	_cans_box.add_child(ItemIcon.new("can", 22))
+	_cans_label = _outlined("", 16)
+	_cans_box.add_child(_cans_label)
+	status.add_child(_cans_box)
+	_wanted_box = HBoxContainer.new()
+	_wanted_box.add_theme_constant_override("separation", 3)
+	_wanted_box.add_child(ItemIcon.new("star", 20, UiStyle.TEXT_DIM))
+	for i in 4:
+		var pip := Panel.new()
+		pip.custom_minimum_size = Vector2(14, 10)
+		pip.add_theme_stylebox_override("panel", UiStyle.box(Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.25), 3))
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_wanted_pips.append(pip)
+		_wanted_box.add_child(pip)
+	_wanted_name = _outlined("", 14, UiStyle.TEXT_DIM)
+	_wanted_box.add_child(_wanted_name)
+	status.add_child(_wanted_box)
+	_meter_box = VBoxContainer.new()
+	_meter_box.add_theme_constant_override("separation", 3)
+	_meter_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_meter_label = _outlined("", 15)
+	_meter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_meter_box.add_child(_meter_label)
+	_meter_bar = ProgressBar.new()
+	_meter_bar.custom_minimum_size = Vector2(260, 8)
+	_meter_bar.max_value = 1.0
+	_meter_bar.show_percentage = false
+	_meter_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	UiStyle.style_bar(_meter_bar, UiStyle.OK)
+	_meter_box.add_child(_meter_bar)
+	_meter_box.visible = false
+	col.add_child(_meter_box)
 	hidden_label = _outlined("ESCONDIDO", 17, UiStyle.OK)
 	hidden_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hidden_label.visible = false
 	col.add_child(hidden_label)
 	if mission == null:
 		_timer_pill.visible = false
+		status.visible = false
+
+
+## Abajo a la derecha: nivel, barra de XP y dinero.
+func _build_profile() -> void:
+	var panel := UiStyle.panel(12, Color(0.04, 0.045, 0.065, 0.78))
+	UiStyle.place(panel, Vector4(1, 1, 1, 1), Vector4(-250, -86, -20, -20))
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	panel.add_child(col)
+	var row := HBoxContainer.new()
+	col.add_child(row)
+	_level_label = UiStyle.label("", 14, UiStyle.TEXT, 600)
+	_level_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_level_label)
+	row.add_child(ItemIcon.new("coin", 18))
+	_money_label = UiStyle.label("", 14, UiStyle.ACCENT, 600)
+	row.add_child(_money_label)
+	_xp_bar = ProgressBar.new()
+	_xp_bar.custom_minimum_size = Vector2(200, 6)
+	_xp_bar.max_value = 1.0
+	_xp_bar.show_percentage = false
+	UiStyle.style_bar(_xp_bar, UiStyle.ACCENT)
+	col.add_child(_xp_bar)
+	_xp_float = _outlined("", 16, UiStyle.ACCENT)
+	UiStyle.place(_xp_float, Vector4(1, 1, 1, 1), Vector4(-250, -120, -20, -92))
+	_xp_float.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_xp_float.modulate.a = 0.0
+	_root.add_child(_xp_float)
+
+
+## Aviso grande al centro: nivel nuevo o logro.
+func _build_banner() -> void:
+	_banner = UiStyle.panel(22, Color(0.05, 0.055, 0.08, 0.95))
+	(_banner.get_theme_stylebox("panel") as StyleBoxFlat).border_color = UiStyle.ACCENT
+	UiStyle.place(_banner, Vector4(0.5, 0.42, 0.5, 0.42), Vector4(-220, -56, 220, 56))
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_banner)
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	_banner.add_child(col)
+	_banner_title = UiStyle.label("", 26, UiStyle.ACCENT, 700)
+	_banner_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(_banner_title)
+	_banner_text = UiStyle.label("", 15, UiStyle.TEXT)
+	_banner_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_banner_text.custom_minimum_size = Vector2(380, 0)
+	col.add_child(_banner_text)
+	_banner.visible = false
 
 
 func _build_top_right() -> void:
@@ -347,16 +474,17 @@ func _refresh_hint() -> void:
 		return
 	var move := "%s%s%s%s" % [InputConfig.key_name("move_forward"), InputConfig.key_name("move_left"),
 			InputConfig.key_name("move_back"), InputConfig.key_name("move_right")]
-	_hint.text = "%s  mover · %s  correr · %s  saltar\n%s  agacharse / esconderse · %s  interactuar\n%s  inventario · %s  pista · Esc  pausa" % [
+	_hint.text = "%s  mover · %s  correr · %s  saltar / trepar\n%s  agacharse / deslizarse (corriendo) · %s  interactuar\n%s  lanzar lata · %s  disfraz · %s  inventario · %s  pista · Esc  pausa" % [
 		move, InputConfig.key_name("run"), InputConfig.key_name("jump"),
 		InputConfig.key_name("crouch"), InputConfig.key_name("interact"),
+		InputConfig.key_name("throw"), InputConfig.key_name("gadget"),
 		InputConfig.key_name("inventory"), InputConfig.key_name("hint")]
 
 
 func _refresh_steps(animate: bool) -> void:
 	if mission == null:
 		return
-	for s: Dictionary in EscapeStory.STEPS:
+	for s: Dictionary in mission.step_list():
 		var id: String = s["id"]
 		var parts: Array = _step_rows[id]
 		var mark: ItemIcon = parts[1]
@@ -417,6 +545,7 @@ func _update_mission_ui(delta: float) -> void:
 	objective.text = mission.objective_text()
 	progress_label.text = mission.progress_text()
 	_update_timer()
+	_update_status()
 	var level := mission.alert_level()
 	match level:
 		2:
@@ -424,7 +553,7 @@ func _update_mission_ui(delta: float) -> void:
 			alert_label.add_theme_color_override("font_color", UiStyle.DANGER)
 			alert_label.modulate.a = 0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
 		1:
-			alert_label.text = "La policía sospecha…"
+			alert_label.text = "Te están buscando…"
 			alert_label.add_theme_color_override("font_color", UiStyle.WARN)
 			alert_label.modulate.a = 1.0
 		_:
@@ -520,10 +649,10 @@ func _show_next_discovery() -> void:
 		_discovery.visible = false
 		return
 	var id: String = _discovery_queue.pop_front()
-	var data := EscapeStory.item(id)
+	var data := mission.item_data(id)
 	_discovery_icon.set_kind(data.get("icon", ""))
 	_discovery_name.text = data.get("name", id)
-	_discovery_kind.text = "DESBLOQUEADO" if id == "celular" else "PRUEBA NUEVA"
+	_discovery_kind.text = "DESBLOQUEADO" if id == "celular" else ("PRUEBA NUEVA" if mission is EscapeMission else "OBJETO NUEVO")
 	_discovery.visible = true
 	_discovery_timer = DISCOVERY_TIME
 	AudioManager.sfx("discover")
@@ -546,3 +675,77 @@ func _update_discovery(delta: float) -> void:
 		_discovery.modulate.a = clampf(_discovery_timer / 0.4, 0.0, 1.0)
 	if _discovery_timer <= 0.0:
 		_show_next_discovery()
+
+
+# ---------------------------------------------------------------------------
+# Estado del capítulo y del perfil
+# ---------------------------------------------------------------------------
+func _update_status() -> void:
+	# Corazones: solo en los capítulos con oportunidades limitadas.
+	if mission.lives != _last_lives:
+		_last_lives = mission.lives
+		for c in _hearts.get_children():
+			c.queue_free()
+		_hearts.visible = mission.max_lives > 0
+		for i in maxi(0, mission.max_lives):
+			var full := i < mission.lives
+			_hearts.add_child(ItemIcon.new("heart" if full else "heart_empty", 22, UiStyle.DANGER if full else UiStyle.TEXT_DIM))
+	var p := mission.world.player
+	_cans_label.text = "×%d" % p.cans
+	_cans_box.tooltip_text = "Latas para distraer (%s)" % InputConfig.key_name("throw")
+	_cans_box.modulate.a = 1.0 if p.cans > 0 else 0.45
+	var wl := mission.wanted.level if mission.wanted != null else 0
+	if wl != _last_wanted:
+		_last_wanted = wl
+		var colors := [UiStyle.OK, UiStyle.WARN, UiStyle.WARN, UiStyle.DANGER, UiStyle.DANGER]
+		for i in _wanted_pips.size():
+			var on := i < wl
+			_wanted_pips[i].add_theme_stylebox_override("panel", UiStyle.box(
+					Color(colors[wl], 0.9) if on else Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.25), 3))
+		_wanted_name.text = WantedSystem.NAMES[wl]
+		_wanted_name.add_theme_color_override("font_color", colors[wl] if wl > 0 else UiStyle.TEXT_DIM)
+	var meter := mission.hud_meter()
+	_meter_box.visible = not meter.is_empty()
+	if not meter.is_empty():
+		_meter_label.text = str(meter.get("label", ""))
+		_meter_bar.value = float(meter.get("value", 0.0))
+		var danger := float(meter.get("danger", 0.0))
+		UiStyle.style_bar(_meter_bar, UiStyle.DANGER if danger > 0.5 else (UiStyle.WARN if danger > 0.0 else UiStyle.OK))
+
+
+func _refresh_profile() -> void:
+	_level_label.text = "Nv %d · %s" % [PlayerProfile.level(), PlayerProfile.level_name()]
+	_money_label.text = "$%d" % PlayerProfile.money
+	_xp_bar.value = PlayerProfile.level_progress()
+
+
+func _on_xp(amount: int, _reason: String) -> void:
+	_refresh_profile()
+	_xp_float.text = "+%d XP" % amount
+	_xp_float.modulate.a = 1.0
+	var tw := _xp_float.create_tween()
+	tw.tween_interval(1.2)
+	tw.tween_property(_xp_float, "modulate:a", 0.0, 0.6)
+
+
+func _on_level_up(level: int) -> void:
+	_refresh_profile()
+	AudioManager.sfx("levelup")
+	_show_banner("¡NIVEL %d!" % level, "Ahora eres %s. Ganaste un punto de habilidad: úsalo en el menú de la pausa o en la portada." % Chapters.level_name(level))
+
+
+func _on_achievement(id: String) -> void:
+	var a: Dictionary = Chapters.ACHIEVEMENTS.get(id, {})
+	AudioManager.sfx("achievement")
+	_on_notify("Logro: %s · %s" % [a.get("name", id), a.get("text", "")])
+
+
+func _show_banner(title: String, text: String) -> void:
+	_banner_title.text = title
+	_banner_text.text = text
+	_banner.visible = true
+	_banner.modulate.a = 1.0
+	var tw := _banner.create_tween()
+	tw.tween_interval(3.0)
+	tw.tween_property(_banner, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(func() -> void: _banner.visible = false)

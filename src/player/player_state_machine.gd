@@ -13,7 +13,7 @@ func setup(p: PlayerController) -> void:
 	player = p
 	for state: PlayerState in [
 		IdleState.new(), WalkState.new(), RunState.new(),
-		JumpState.new(), FallState.new(), CrouchState.new(),
+		JumpState.new(), FallState.new(), CrouchState.new(), VaultState.new(), SlideState.new(),
 	]:
 		state.player = p
 		states[state.state_name()] = state
@@ -36,5 +36,7 @@ func physics_update(delta: float) -> void:
 	if current == null:
 		return
 	var next: StringName = current.physics_update(delta)
-	if next != &"" and next != current_name:
+	if next == &"Vault":
+		change_state(next, {"target": player.vault_target})
+	elif next != &"" and next != current_name:
 		change_state(next)

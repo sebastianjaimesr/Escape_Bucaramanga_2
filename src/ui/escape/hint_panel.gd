@@ -4,14 +4,14 @@ extends ModalPanel
 ## la primera orienta, la segunda acerca y la tercera dice la solución.
 ## No restan tiempo; se cuentan en el resultado final.
 
-var mission: EscapeMission
+var mission: Mission
 var _step: Label
 var _list: VBoxContainer
 var _reveal: Button
 var _note: Label
 
 
-func _init(w: PrototypeWorld, m: EscapeMission) -> void:
+func _init(w: PrototypeWorld, m: Mission) -> void:
 	super(w)
 	mission = m
 

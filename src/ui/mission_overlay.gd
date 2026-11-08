@@ -1,14 +1,16 @@
 class_name MissionOverlay
 extends CanvasLayer
 ## Pantallas de la misión:
-## - «¡Te atraparon!»: unos segundos y vuelves con tus amigos.
-## - Victoria: tiempo, pistas, veces atrapado, errores y rango final.
-## - Derrota (contrarreloj): se acabó el tiempo, con cuántos objetivos se lograron.
-## Desde victoria y derrota se puede jugar otra vez (mismo modo) o ir al menú.
+## - «¡Te atraparon!»: unos segundos y vuelves al último punto de control
+##   (en los capítulos con corazones, dice cuántos quedan).
+## - Victoria: tiempo, pistas, veces atrapado, errores, rango, recompensas
+##   (XP, dinero, nivel nuevo, logros) y el botón al siguiente capítulo.
+## - Derrota (se acabó el tiempo o los corazones): objetivos logrados y reintentar.
+## Desde victoria y derrota se puede reintentar el capítulo o ir al menú.
 
 const CAUGHT_SECONDS := 2.8
 
-var mission: EscapeMission
+var mission: Mission
 var _dim: ColorRect
 var _box: VBoxContainer
 var _over: Label
@@ -17,10 +19,12 @@ var _body: Label
 var _stats: GridContainer
 var _buttons: HBoxContainer
 var _again: Button
+var _next: Button
+var _rewards: VBoxContainer
 var _timer := 0.0
 
 
-func _init(m: EscapeMission) -> void:
+func _init(m: Mission) -> void:
 	mission = m
 
 
@@ -56,14 +60,24 @@ func _ready() -> void:
 	_stats.add_theme_constant_override("v_separation", 12)
 	_stats.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_box.add_child(_stats)
+	_rewards = VBoxContainer.new()
+	_rewards.add_theme_constant_override("separation", 4)
+	_rewards.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(_rewards)
 	_buttons = HBoxContainer.new()
 	_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	_buttons.add_theme_constant_override("separation", 12)
 	_box.add_child(_buttons)
-	_again = UiStyle.button("Jugar otra vez", 230, "primary")
+	_next = UiStyle.button("Siguiente capítulo", 230, "primary")
+	_next.pressed.connect(func() -> void:
+		var next := Chapters.next_id(mission.chapter_id)
+		GameSession.new_game("explorador", next)
+		SceneLoader.change_scene(MainMenu.PROTOTYPE_SCENE, Chapters.get_chapter(next).get("title", "")))
+	_buttons.add_child(_next)
+	_again = UiStyle.button("Jugar otra vez", 200)
 	_again.pressed.connect(func() -> void:
-		GameSession.new_game(mission.mode)
-		SceneLoader.change_scene(MainMenu.PROTOTYPE_SCENE, "Las pruebas del malentendido"))
+		GameSession.new_game(mission.mode, mission.chapter_id)
+		SceneLoader.change_scene(MainMenu.PROTOTYPE_SCENE, mission.title()))
 	_buttons.add_child(_again)
 	var menu := UiStyle.button("Menú principal", 230)
 	menu.pressed.connect(func() -> void: SceneLoader.change_scene(SceneLoader.MAIN_MENU, "Menú principal"))
@@ -87,8 +101,13 @@ func _on_caught(count: int) -> void:
 	_title.text = "¡Te atraparon!"
 	_title.add_theme_color_override("font_color", UiStyle.DANGER)
 	var extra := "" if count == 1 else "\n(Van %d veces)" % count
-	_body.text = "Sebastián se escabulle y vuelve con sus amigos. No pierde ninguna prueba.%s" % extra
+	if mission.max_lives > 0:
+		extra = "\nTe quedan %d de %d oportunidades." % [mission.lives, mission.max_lives]
+		_body.text = "Sebastián se escabulle y vuelve al último punto de control. No pierde nada de lo que consiguió.%s" % extra
+	else:
+		_body.text = "Sebastián se escabulle y vuelve con sus amigos. No pierde ninguna prueba.%s" % extra
 	_stats.visible = false
+	_rewards.visible = false
 	_buttons.visible = false
 	_show(Color(0.14, 0.02, 0.02, 0.62))
 	_timer = CAUGHT_SECONDS
@@ -96,17 +115,26 @@ func _on_caught(count: int) -> void:
 
 
 func _on_won(stats: Dictionary) -> void:
-	_over.text = "CASO RESUELTO · %s" % EscapeStory.mode(str(stats["mode"]))["label"].to_upper()
+	var c := Chapters.get_chapter(mission.chapter_id)
+	if mission is EscapeMission:
+		_over.text = "CAPÍTULO 1 SUPERADO · %s" % EscapeStory.mode(str(stats["mode"]))["label"].to_upper()
+	else:
+		_over.text = "CAPÍTULO %d SUPERADO" % int(c.get("number", 0))
 	_over.add_theme_color_override("font_color", UiStyle.OK)
-	_title.text = "¡Malentendido aclarado!"
+	_title.text = str(c.get("win_title", "¡Capítulo superado!"))
 	_title.add_theme_color_override("font_color", UiStyle.TEXT)
-	_body.text = "La foto, el video, tu recibo y la gorra cuentan lo que pasó a las 17:42: tú estabas pagando en la Tienda Doña Rosa y el ladrón era otro, con gorra roja.\nRango: %s" % stats["rank"]
+	_body.text = "%s\nRango: %s" % [mission.victory_text(), stats["rank"]]
 	_fill_stats([
 		["Tiempo", _clock(float(stats["time"]))],
 		["Pistas", str(stats["hints"])],
 		["Atrapado", str(stats["caught"])],
 		["Errores", str(stats["wrong"])],
 	])
+	_fill_rewards(stats.get("reward", {}))
+	var next := Chapters.next_id(mission.chapter_id)
+	_next.visible = next != ""
+	if next == "":
+		_body.text += "\n" + Chapters.NEXT_TEASER
 	_buttons.visible = true
 	_show(Color(0.02, 0.05, 0.04, 0.8))
 	_timer = 0.0
@@ -114,13 +142,22 @@ func _on_won(stats: Dictionary) -> void:
 	AudioManager.sfx("win")
 
 
-func _on_lost(_reason: String) -> void:
-	_over.text = "CONTRARRELOJ"
+func _on_lost(reason: String) -> void:
+	if reason == "capturado":
+		_over.text = "SIN OPORTUNIDADES"
+		_title.text = "Te atraparon demasiadas veces"
+		_body.text = "Esta vez no se pudo. Lograste %s objetivos. Muévete agachado, usa las latas (%s) y escóndete en los matorrales para que baje la búsqueda." % [
+				mission.progress_text(), InputConfig.key_name("throw")]
+	else:
+		_over.text = "CONTRARRELOJ"
+		_title.text = "Se acabó el tiempo"
+		_body.text = "La policía se llevó a Sebastián antes de que pudieran aclarar todo. Lograste %s objetivos. Las pistas (%s) ayudan si te atascas." % [
+				mission.progress_text(), InputConfig.key_name("hint")]
 	_over.add_theme_color_override("font_color", UiStyle.WARN)
-	_title.text = "Se acabó el tiempo"
 	_title.add_theme_color_override("font_color", UiStyle.WARN)
-	_body.text = "La policía se llevó a Sebastián antes de que pudieran aclarar todo. Lograste %s objetivos. Las pistas (%s) ayudan si te atascas." % [
-			mission.progress_text(), InputConfig.key_name("hint")]
+	_rewards.visible = false
+	_next.visible = false
+	_again.text = "Reintentar"
 	_fill_stats([["Objetivos", mission.progress_text()], ["Pistas", str(mission.hints.total_used())],
 			["Atrapado", str(mission.caught_count)], ["Errores", str(mission.wrong_answers)]])
 	_buttons.visible = true
@@ -137,7 +174,32 @@ func _end_common() -> void:
 	AudioManager.set_chase(0)
 	AudioManager.play_music("menu")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_again.grab_focus()
+	(_next if _next.visible else _again).grab_focus()
+
+
+## Recompensas del capítulo: cada bono con su XP, el dinero, el nivel y los logros.
+func _fill_rewards(r: Dictionary) -> void:
+	for ch in _rewards.get_children():
+		ch.queue_free()
+	_rewards.visible = not r.is_empty()
+	if r.is_empty():
+		return
+	for line: Array in r.get("lines", []):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 24)
+		var k := UiStyle.label(str(line[0]), 16, UiStyle.TEXT)
+		k.custom_minimum_size = Vector2(260, 0)
+		row.add_child(k)
+		row.add_child(UiStyle.label("+%d XP" % int(line[1]), 16, UiStyle.ACCENT, 600))
+		_rewards.add_child(row)
+	var total := UiStyle.label("Total: +%d XP · +$%d" % [int(r.get("xp", 0)), int(r.get("money", 0))], 18, UiStyle.OK, 700)
+	_rewards.add_child(total)
+	if int(r.get("level_after", 0)) > int(r.get("level_before", 0)):
+		_rewards.add_child(UiStyle.label("¡Subiste al nivel %d · %s! Tienes puntos de habilidad para gastar." % [
+				int(r["level_after"]), Chapters.level_name(int(r["level_after"]))], 16, UiStyle.ACCENT, 600))
+	for id: String in r.get("achievements", []):
+		var a: Dictionary = Chapters.ACHIEVEMENTS.get(id, {})
+		_rewards.add_child(UiStyle.label("Logro: %s" % a.get("name", id), 15, UiStyle.WARN, 600))
 
 
 func _fill_stats(rows: Array) -> void:

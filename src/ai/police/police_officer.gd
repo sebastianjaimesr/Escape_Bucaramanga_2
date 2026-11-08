@@ -44,6 +44,8 @@ var alert := 0.0                  ## 0..1. Al llegar a 1 empieza la persecución
 var last_known := Vector3.ZERO
 var active := true                ## false: no piensa ni percibe (pruebas, pantallas).
 var sees_player := false
+## Alcance de la vista (los vigilantes de la bodega ven un poco menos de noche).
+var view_range := VIEW_RANGE
 
 var _player: PlayerController
 var _lost_timer := 0.0
@@ -85,6 +87,7 @@ func setup(patrol_route: PackedVector3Array) -> void:
 	route = patrol_route
 	route_index = 0
 	EventBus.police_radio.connect(_on_radio)
+	EventBus.noise.connect(_on_noise)
 
 
 ## Vuelve al estado inicial en su ruta (tras atrapar al jugador).
@@ -131,7 +134,7 @@ func can_see_player() -> bool:
 	var to := target - eye
 	var dist := to.length()
 	var player_running := _player.is_running()
-	var reach := VIEW_RANGE
+	var reach := view_range * PlayerProfile.visibility_mult()
 	if _player.crouching:
 		reach *= CROUCH_RANGE_MULT
 	elif player_running:
@@ -140,7 +143,7 @@ func can_see_player() -> bool:
 		return false
 	var flat := Vector3(to.x, 0.0, to.z)
 	var in_cone := flat.length() < 0.01 or view_direction().angle_to(flat.normalized()) <= VIEW_FOV * 0.5
-	var heard := player_running and dist < HEAR_RANGE
+	var heard := player_running and dist < HEAR_RANGE * PlayerProfile.noise_mult()
 	if not in_cone and not heard and dist > CLOSE_SENSE:
 		return false
 	_ray.from = eye
@@ -277,6 +280,34 @@ func _on_radio(pos: Vector3, from: Node) -> void:
 	last_known = pos
 	alert = maxf(alert, 0.6)
 	_set_state(State.SEARCH)
+
+
+## Va a revisar un punto (un ruido, un aviso). No interrumpe una persecución.
+func investigate(pos: Vector3) -> void:
+	if state == State.CHASE:
+		return
+	last_known = pos
+	alert = maxf(alert, 0.5)
+	_set_state(State.SEARCH)
+	_search_point = pos
+	go_to(pos)
+
+
+## Te perdió de vista (por ejemplo, al cambiarte de chaqueta): deja de perseguir y busca.
+func lose_track() -> void:
+	if state == State.CHASE:
+		_set_state(State.SEARCH)
+
+
+## Oyó un ruido (una lata, una alarma): si está cerca y no te persigue, va a mirar.
+func _on_noise(pos: Vector3, radius: float, source: String) -> void:
+	if not active or state == State.CHASE or not is_inside_tree():
+		return
+	if global_position.distance_to(pos) > radius:
+		return
+	investigate(pos)
+	if source == "lata":
+		PlayerProfile.unlock_achievement("distraccion")
 
 
 func _set_state(s: State) -> void:
