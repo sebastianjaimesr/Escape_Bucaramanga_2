@@ -1912,6 +1912,12 @@ func test_menu_credits_and_stats() -> void:
 	menu._show_page("credits", false)
 	await frames(3)
 	check(menu._pages.has("credits") and (menu._pages["credits"] as Control).visible, "Hay página de créditos")
+	var esc := InputEventAction.new()
+	esc.action = "ui_cancel"
+	esc.pressed = true
+	Input.parse_input_event(esc)
+	await frames(3)
+	check((menu._pages["home"] as Control).visible, "Esc vuelve a la portada desde los créditos")
 	menu._open_profile("stats")
 	await frames(3)
 	check((menu._pages["profile"] as ProfilePanel).tab == "stats", "El perfil tiene estadísticas")

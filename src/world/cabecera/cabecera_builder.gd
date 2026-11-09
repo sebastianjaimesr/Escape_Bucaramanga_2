@@ -69,7 +69,8 @@ func build() -> Dictionary:
 	_flush_batches()
 	_build_bounds()
 	points["spawn"] = Vector3(-52.0, G, 26.0)
-	points["spawn_yaw"] = deg_to_rad(-135.0)
+	# Mirando al norte, hacia la fuente donde espera Lucía.
+	points["spawn_yaw"] = deg_to_rad(-32.0)
 	points["palms"] = _palm_count
 	points["reinforcement_entries"] = [Vector3(0.0, 0.0, -66.0), Vector3(66.0, G, 0.0), Vector3(-66.0, G, 0.0), Vector3(0.0, 0.0, SOUTH_Z)]
 	return points

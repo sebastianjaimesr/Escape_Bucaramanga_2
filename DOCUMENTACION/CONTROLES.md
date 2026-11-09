@@ -1,6 +1,6 @@
 # Controles
 
-Estado: versión 0.5.0. Solo se listan como activos los controles que ya hacen algo.
+Estado: versión 0.6.0. Solo se listan como activos los controles que ya hacen algo.
 
 ## Teclado y ratón
 
@@ -9,13 +9,15 @@ Estado: versión 0.5.0. Solo se listan como activos los controles que ya hacen a
 | Moverse | W A S D (también flechas) | Activo |
 | Correr (gasta resistencia) | Shift | Activo |
 | Saltar (mantener = más alto); contra un muro bajo, trepar | Espacio | Activo |
-| Agacharse / levantarse (dentro de un matorral: esconderse); corriendo, deslizarse | C | Activo |
+| Agacharse / levantarse (dentro de un matorral: esconderse); corriendo, deslizarse; al caer de alto, rodar | C | Activo |
 | Lanzar una lata para distraer | G | Activo |
 | Disfraz (chaqueta de la tienda o impermeable del capítulo 4) | Q | Activo |
 | Mover la cámara | Ratón (haz clic en el juego para capturarlo) | Activo |
 | Pausa | Esc | Activo |
 | Medidor de rendimiento | F3 | Activo |
-| Interactuar (recoger pruebas, hablar, revisar la caja, comprar granizado) | E | Activo |
+| Interactuar (recoger pruebas, hablar, revisar la caja, comprar granizado, colgarse de la tirolesa) | E | Activo |
+| Soltarse de la tirolesa | Espacio | Activo |
+| Saltar una cinemática | E, Espacio, Esc o clic | Activo |
 | Entrar o salir de vehículos | F | Fase 7 |
 | Inventario (abrir y cerrar) | Tab o I | Activo |
 | Pedir una pista | H | Activo |

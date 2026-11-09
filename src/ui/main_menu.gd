@@ -213,7 +213,7 @@ func _refresh_chapters() -> void:
 	var list := (_pages["chapters"] as Node).get_node("Lista") as VBoxContainer
 	for c in list.get_children():
 		c.queue_free()
-	var times := {"manana": "De mañana", "tarde": "Al atardecer", "noche": "De noche"}
+	var times := {"manana": "De mañana", "tarde": "Al atardecer", "noche": "De noche", "madrugada": "De madrugada"}
 	for c: Dictionary in Chapters.LIST:
 		var id: String = c["id"]
 		var unlocked := PlayerProfile.is_chapter_unlocked(id)
@@ -454,6 +454,13 @@ func _show_page(id: String, animate: bool = true) -> void:
 		(_continue if _continue.visible else _play).grab_focus.call_deferred()
 	else:
 		_focus_first_button.call_deferred(page)
+
+
+## Esc (o el botón B del control) vuelve a la portada desde cualquier página.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and not (_pages["home"] as Control).visible:
+		get_viewport().set_input_as_handled()
+		_show_page("home")
 
 
 func _focus_first_button(page: Control) -> void:

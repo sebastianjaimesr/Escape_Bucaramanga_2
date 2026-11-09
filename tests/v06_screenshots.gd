@@ -97,7 +97,12 @@ func _ready() -> void:
 	world.camera_rig.yaw = -PI * 0.5 + 0.5
 	world.camera_rig.pitch = -0.15
 	m.zipline.ride(world.player)
-	await wait(75)
+	# A mitad del cable (la ventana virtual puede ir a pocos cuadros por segundo).
+	var mid_x := (m.zipline.start.x + m.zipline.end.x) * 0.5
+	for i in 600:
+		if world.player.global_position.x < mid_x:
+			break
+		await wait(1)
 	await shot("v11_tirolesa")
 	await wait(240)
 	m.dawn_left = GranHuidaMission.DAWN_SECONDS * 0.35

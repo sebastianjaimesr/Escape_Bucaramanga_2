@@ -2,7 +2,7 @@
 
 Aventura urbana en tercera persona inspirada en Bucaramanga, Santander (Colombia), hecha en **Godot 4.7**. Sebastián y sus tres amigos recorren la ciudad para aclarar un malentendido, y terminan destapando la red que está detrás de los robos del barrio, mientras la policía (ficticia) los busca.
 
-> Estado: **versión 0.5.0, aventura en cuatro capítulos** sobre la manzana de prueba. El plan completo está en [DOCUMENTACION/PLAN_DE_DESARROLLO.md](DOCUMENTACION/PLAN_DE_DESARROLLO.md).
+> Estado: **versión 0.6.0, aventura en cinco capítulos**: cuatro en la manzana de prueba y el final en Cabecera del Llano. El plan completo está en [DOCUMENTACION/PLAN_DE_DESARROLLO.md](DOCUMENTACION/PLAN_DE_DESARROLLO.md).
 > La versión 2D original está completa y jugable en [`clasico-2d/`](clasico-2d/).
 
 Los lugares están inspirados en Bucaramanga; no son reproducciones exactas. La policía y los nombres comerciales son ficticios.
@@ -17,14 +17,21 @@ Los lugares están inspirados en Bucaramanga; no son reproducciones exactas. La 
 | 2 | El robo de la plaza | Mañana | Testigo, pistas, identificar al ladrón y seguirlo sin que te vea |
 | 3 | Sombras en el callejón | Noche | Infiltrarse en una bodega con vigilantes y cámaras |
 | 4 | Persecución urbana | Noche con lluvia | Escapar de la policía con un disfraz y llegar al refugio |
+| 5 | La gran huida | Madrugada | Terrazas de Cabecera, caja fuerte, drones, tirolesa y carrera al Puente de la Novena antes del amanecer |
 
-- **Progresión que se conserva:** 10 niveles, 6 habilidades, tienda, 12 logros y 10 postales escondidas con datos de Bucaramanga.
+- **Progresión que se conserva:** 10 niveles, 6 habilidades, tienda, 16 logros, 15 postales escondidas con datos de Bucaramanga y estadísticas del jugador.
 - **Búsqueda policial por niveles** (Tranquilo, Sospecha, Búsqueda, Persecución y Cerco) con refuerzos, **cámaras de seguridad**, **latas para distraer** y **disfraces**.
-- **Moverse por la ciudad:** correr, saltar, trepar muros bajos, deslizarse y esconderse en los matorrales.
+- **Moverse por la ciudad:** correr, saltar, trepar muros bajos, deslizarse, rodar al caer, colgarse de una tirolesa y esconderse en los matorrales.
+- **Drones de vigilancia**, **cinemáticas cortas que se pueden saltar** y títulos al entrar a cada zona.
 - **Corazones y puntos de control** desde el capítulo 2, y recompensas al terminar cada capítulo.
-- 72 pruebas automáticas.
+- 89 pruebas automáticas.
 
-Diseño de la aventura: [DOCUMENTACION/AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md).
+Diseño de la aventura: [DOCUMENTACION/AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md). Capítulo 5: [DOCUMENTACION/GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md).
+
+![Parque de las Palmas](DOCUMENTACION/capturas/v0.6/parque_palmas.jpg)
+![Terrazas de Cabecera](DOCUMENTACION/capturas/v0.6/terrazas.jpg)
+![Tirolesa](DOCUMENTACION/capturas/v0.6/tirolesa.jpg)
+![Puente de la Novena al amanecer](DOCUMENTACION/capturas/v0.6/puente_amanecer.jpg)
 
 ![Portada con la campaña](DOCUMENTACION/capturas/v0.5/portada_campana.jpg)
 ![Selección de capítulo](DOCUMENTACION/capturas/v0.5/capitulos.jpg)
@@ -65,6 +72,7 @@ godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
 # Capturas de la interfaz (necesita ventana)
 godot --path . --rendering-method gl_compatibility --resolution 1280x720 res://tests/ui_screenshots.tscn -- <carpeta> [touch]
 godot --path . --rendering-method gl_compatibility --resolution 1280x720 res://tests/adventure_screenshots.tscn -- <carpeta>
+godot --path . --rendering-method gl_compatibility --resolution 1280x720 res://tests/v06_screenshots.tscn -- <carpeta> [bajo|medio|alto]
 ```
 
 Detalle y resultados en [DOCUMENTACION/PRUEBAS.md](DOCUMENTACION/PRUEBAS.md).
@@ -73,6 +81,7 @@ Detalle y resultados en [DOCUMENTACION/PRUEBAS.md](DOCUMENTACION/PRUEBAS.md).
 
 | Documento | Contenido |
 |---|---|
+| [GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md) | Capítulo 5, Cabecera, parkour, drones y cinemáticas (0.6) |
 | [AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md) | Campaña, sistemas nuevos y progresión (0.5) |
 | [AUDITORIA_INICIAL.md](DOCUMENTACION/AUDITORIA_INICIAL.md) | Auditoría del juego 2D y elección del motor |
 | [ARQUITECTURA.md](DOCUMENTACION/ARQUITECTURA.md) | Sistemas, carpetas, guardado, calidad gráfica, recursos |

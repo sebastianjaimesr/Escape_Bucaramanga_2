@@ -3,13 +3,16 @@
 ## Cómo ejecutarlas
 
 ```bash
-# Juego 3D: 72 pruebas de integración
+# Juego 3D: 89 pruebas de integración
 godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
 # Solo algunas (para depurar)
 TEST_ONLY=test_chapter3_bodega,test_wanted_reinforcements godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn
 
 # Capturas de la aventura (portada, capítulos, tienda, capítulos 2 a 4, recompensas)
 godot --path . --rendering-method gl_compatibility --resolution 1280x720 res://tests/adventure_screenshots.tscn -- <carpeta>
+
+# Capturas de la 0.6 (portada, créditos, estadísticas y capítulo 5)
+godot --path . --rendering-method gl_compatibility --resolution 1280x720 res://tests/v06_screenshots.tscn -- <carpeta> [bajo|medio|alto]
 
 # Capturas de pantalla (necesita ventana; no funciona con --headless)
 godot --path . res://tests/screenshots.tscn -- <carpeta> <bajo|medio|alto>
@@ -20,6 +23,34 @@ godot --headless --path clasico-2d --fixed-fps 60 res://tests/bot_runner.tscn
 ```
 
 `test_runner` sale con código 0 si todo pasa y 1 si algo falla. Usa sus propios archivos de configuración, partida y perfil (`user://test_settings.cfg`, `user://test_partida.cfg`, `user://test_perfil.cfg`) y los borra: no toca nada del jugador.
+
+## Resultados de la versión 0.6.0 (9 de noviembre de 2026)
+
+Entorno: Godot 4.7.2 estable, Linux, headless, física a 60 Hz. **89 OK, 0 fallos.** Las 72 anteriores siguen pasando (dos se ajustaron: las postales ahora dependen del mapa y el capítulo 4 ya no es el último) y se agregaron 17:
+
+| Prueba | Qué comprueba |
+|---|---|
+| test_cabecera_builds | El mapa de Cabecera se arma con el puente, la tirolesa y la caja fuerte, palmas, zonas con nombre, solo sus postales, el dron de las terrazas y navmesh |
+| test_rooftop_running_jump | Con carrera se salta de una terraza a la siguiente |
+| test_rooftop_walking_jump_falls | Caminando no alcanza y se cae al callejón |
+| test_hard_landing_and_roll | Caer de alto sin agacharse aturde; agachado, rueda y sigue |
+| test_high_fall_costs_heart | Una caída muy alta sin rodar quita un corazón |
+| test_zipline_ride | Colgarse, bajar por el cable y llegar al mirador |
+| test_drone_detects_and_tracks | El dron ve al jugador, da la alarma, sube la búsqueda y lo sigue |
+| test_drone_ignores_hidden_player | Agachado en un matorral, el dron no lo ve |
+| test_gran_huida_full_run | Capítulo 5 completo: Lucía, terrazas, oficina, nota, clave, alarma, tirolesa, puente y victoria |
+| test_gran_huida_wrong_code | La clave equivocada no abre y sube la búsqueda |
+| test_dawn_runs_out | Si se acaba el tiempo, sale el sol y se pierde |
+| test_gran_huida_continue | «Continuar» retoma el capítulo 5 en su punto de control con el tiempo que quedaba |
+| test_cinematic_blocks_input_and_skips | La cinemática bloquea el control, se salta y lo devuelve |
+| test_camera_shake_decays | La sacudida de cámara se apaga sola |
+| test_zone_title_card | Entrar a una zona muestra su título una sola vez |
+| test_profile_stats | Las estadísticas se suman, se guardan y se cargan |
+| test_menu_credits_and_stats | Páginas de créditos y estadísticas; Esc vuelve a la portada |
+
+### Prueba en navegador (0.6.0)
+
+Exportación web (`gl_compatibility`, sin hilos) servida en local y abierta con Chromium (Playwright, SwiftShader), sin errores de consola: portada, créditos y Esc de vuelta, selección de capítulos, capítulo 1 con movimiento y pausa, y capítulo 5 (con un perfil que ya tenía los capítulos 1 a 4) con su cinemática de inicio y el juego en marcha.
 
 ## Resultados de la versión 0.5.0 (8 de noviembre de 2026)
 
