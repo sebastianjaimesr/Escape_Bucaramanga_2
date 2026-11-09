@@ -27,6 +27,20 @@ const PRESETS := {
 		"sun_energy": 0.22, "sun_rot": Vector3(-55.0, 30.0, 0.0), "ambient": 0.32,
 		"fog": Color(0.1, 0.11, 0.16), "fog_density": 1.0, "exposure": 1.25, "lamps": true,
 	},
+	# Capítulo 5: empieza de madrugada y el cielo se aclara mientras avanza la
+	# huida (la misión mezcla "madrugada" y "amanecer" con blend()).
+	"madrugada": {
+		"sky_top": Color(0.07, 0.09, 0.22), "sky_horizon": Color(0.26, 0.2, 0.34),
+		"ground_horizon": Color(0.1, 0.09, 0.13), "sun_color": Color(0.6, 0.62, 1.0),
+		"sun_energy": 0.42, "sun_rot": Vector3(-34.0, 95.0, 0.0), "ambient": 0.75,
+		"fog": Color(0.16, 0.14, 0.22), "fog_density": 1.0, "exposure": 1.22, "lamps": true,
+	},
+	"amanecer": {
+		"sky_top": Color(0.2, 0.3, 0.62), "sky_horizon": Color(1.0, 0.62, 0.42),
+		"ground_horizon": Color(0.55, 0.42, 0.4), "sun_color": Color(1.0, 0.7, 0.48),
+		"sun_energy": 1.25, "sun_rot": Vector3(-9.0, 95.0, 0.0), "ambient": 0.68,
+		"fog": Color(0.95, 0.68, 0.55), "fog_density": 1.0, "exposure": 1.1, "lamps": true,
+	},
 }
 const LAMP_COLOR := Color(1.0, 0.78, 0.5)
 const LAMP_ENERGY := 2.2
@@ -35,6 +49,37 @@ const LAMP_RANGE := 11.0
 
 static func apply(world: PrototypeWorld, preset: String, rain: bool) -> void:
 	var p: Dictionary = PRESETS.get(preset, PRESETS["tarde"])
+	_set_sky(world, p, rain)
+	if p["lamps"]:
+		_light_lamps(world)
+	if rain:
+		var r := RainFx.new()
+		r.name = "Lluvia"
+		world.add_child(r)
+
+
+## Mezcla dos horas (0 = from, 1 = to) sin tocar faroles ni lluvia: el cielo de
+## la huida final pasa de la madrugada al amanecer.
+static func blend(world: PrototypeWorld, from: String, to: String, t: float) -> void:
+	var a: Dictionary = PRESETS[from]
+	var b: Dictionary = PRESETS[to]
+	var p := {}
+	t = clampf(t, 0.0, 1.0)
+	for key: String in a:
+		var va: Variant = a[key]
+		var vb: Variant = b[key]
+		if va is Color:
+			p[key] = (va as Color).lerp(vb, t)
+		elif va is Vector3:
+			p[key] = (va as Vector3).lerp(vb, t)
+		elif va is float:
+			p[key] = lerpf(va, vb, t)
+		else:
+			p[key] = va
+	_set_sky(world, p, false)
+
+
+static func _set_sky(world: PrototypeWorld, p: Dictionary, rain: bool) -> void:
 	var env := world.environment
 	var sky_mat := env.sky.sky_material as ProceduralSkyMaterial
 	sky_mat.sky_top_color = p["sky_top"]
@@ -44,18 +89,13 @@ static func apply(world: PrototypeWorld, preset: String, rain: bool) -> void:
 		sky_mat.sky_top_color = (p["sky_top"] as Color).lerp(Color(0.2, 0.22, 0.25), 0.5)
 		sky_mat.sky_horizon_color = (p["sky_horizon"] as Color).lerp(Color(0.25, 0.27, 0.3), 0.5)
 	env.ambient_light_energy = p["ambient"]
+	env.ambient_light_color = p["fog"]
 	env.fog_light_color = p["fog"]
 	env.fog_density = float(p["fog_density"]) * (1.6 if rain else 1.0)
 	env.tonemap_exposure = p["exposure"]
 	world.sun.light_color = p["sun_color"]
 	world.sun.light_energy = float(p["sun_energy"]) * (0.7 if rain else 1.0)
 	world.sun.rotation_degrees = p["sun_rot"]
-	if p["lamps"]:
-		_light_lamps(world)
-	if rain:
-		var r := RainFx.new()
-		r.name = "Lluvia"
-		world.add_child(r)
 
 
 static func _light_lamps(world: PrototypeWorld) -> void:

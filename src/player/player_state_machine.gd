@@ -14,6 +14,7 @@ func setup(p: PlayerController) -> void:
 	for state: PlayerState in [
 		IdleState.new(), WalkState.new(), RunState.new(),
 		JumpState.new(), FallState.new(), CrouchState.new(), VaultState.new(), SlideState.new(),
+		ZiplineState.new(), RollState.new(), HardLandState.new(),
 	]:
 		state.player = p
 		states[state.state_name()] = state

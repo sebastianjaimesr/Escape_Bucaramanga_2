@@ -1,5 +1,41 @@
 # Cambios
 
+## 0.6.0 — La gran huida (9 de noviembre de 2026)
+
+Detalle: [DOCUMENTACION/GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md).
+
+### Campaña
+- **Capítulo 5 · La gran huida** (de madrugada, en Cabecera): Lucía en la fuente, escalera de incendios, cinco terrazas, oficina de El Búho con caja fuerte (clave 1622), alarma con patrullas y drones, tirolesa al parque y carrera al Puente de la Novena antes de que salga el sol (170 s).
+- El capítulo 4 lleva ahora al 5, que cierra la primera temporada.
+
+### Mundo
+- Mapa nuevo de 140 × 140 m inspirado en Cabecera del Llano: Parque de las Palmas con fuente y chorros, palmas, monumento y kiosco; Carrera 33 con separador; terrazas; torres con luz de aviación; centro comercial; cañada con puente en arco.
+- Títulos de zona al entrar por primera vez a cada lugar.
+- Horas «madrugada» y «amanecer», con el cielo aclarándose durante la huida.
+- El minimapa dibuja el mapa de cada capítulo.
+
+### Movimiento y juego
+- Rodar al caer de alto (C, o venir corriendo), caída dura que aturde y caída muy alta que quita un corazón.
+- Tirolesa (E para colgarse, Espacio para soltarse).
+- Drones de vigilancia con cono de luz y estados (patrulla, seguimiento, búsqueda, regreso).
+- Sacudida de cámara en golpes, caídas y alarmas (reducida con «Reducir animaciones»).
+- Pasos con sonido.
+
+### Cinemáticas e interfaz
+- Tres cinemáticas cortas con franjas y subtítulos; se saltan con E, Espacio, Esc, clic o toque.
+- Páginas de Créditos y Estadísticas; Esc vuelve a la portada desde cualquier página del menú.
+- Pantallas de derrota nuevas: «Caída» y «Salió el sol».
+- 4 logros nuevos (16) y 5 postales nuevas (15).
+
+### Audio
+- Música del final, bucles del dron y de la tirolesa, y 8 efectos nuevos, todos sintetizados.
+
+### Correcciones
+- En la selección de capítulos faltaba el nombre de la hora de la madrugada (quedaba «· ·»).
+
+### Pruebas
+- 17 pruebas nuevas (89 en total) y capturas con `tests/v06_screenshots.tscn`.
+
 ## 0.5.0 — Aventura urbana en capítulos (8 de noviembre de 2026)
 
 Detalle del diseño y los sistemas: [DOCUMENTACION/AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md).

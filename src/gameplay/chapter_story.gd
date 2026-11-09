@@ -30,9 +30,46 @@ const ITEMS := {
 	"impermeable": {"name": "Impermeable de Gordo", "icon": "raincoat",
 		"text": "Un impermeable amarillo con capucha. Si te lo pones, la policía deja de reconocerte (baja dos niveles de búsqueda).",
 		"use": "disguise"},
+	# --- Capítulo 5 ---
+	"nota_clave": {"name": "Nota del escritorio", "icon": "doc",
+		"text": "Letra de Pabón: «La clave de siempre: el año en que se fundó la ciudad. Lo dice la placa del monumento del parque.»"},
+	"contrato": {"name": "Contrato de Inversiones La Meseta", "icon": "envelope",
+		"text": "El contrato que une a «El Búho» con Aurelio Pabón y la red de la bodega. Con esto, Lucía puede contarlo todo."},
 }
 
 const STEPS := {
+	"gran_huida": [
+		{"id": "periodista", "title": "Encuentra a Lucía, la periodista, en la fuente", "requires": [], "hints": [
+			"Lucía te espera en la fuente del centro del Parque de las Palmas.",
+			"Sigue el sendero de palmas hacia el centro del parque.",
+			"Es la mujer de chaqueta morada junto a la fuente. Acércate y pulsa Interactuar.",
+		]},
+		{"id": "terrazas", "title": "Sube a las terrazas por la escalera de incendios", "requires": ["periodista"], "checkpoint": true, "hints": [
+			"La escalera está al otro lado de la Carrera 33, en el costado sur de los edificios bajos.",
+			"Cruza la avenida hacia el este y busca la escalera en la esquina con la calle sur.",
+			"Sube la escalera exterior hasta la primera terraza (sigue la columna de luz).",
+		]},
+		{"id": "oficina", "title": "Cruza las terrazas hasta la oficina de El Búho", "requires": ["terrazas"], "checkpoint": true, "hints": [
+			"Ve hacia el norte saltando de terraza en terraza. Los saltos largos se hacen corriendo.",
+			"Entre la segunda y la tercera hay una tabla; el salto a la cuarta es el más largo: toma impulso. Si te caes, hay una escalera en ese callejón.",
+			"Esquiva la luz del dron (bajo los toldos no te ve) y entra a la caseta de la última terraza por la puerta oeste.",
+		]},
+		{"id": "caja", "title": "Abre la caja fuerte y saca el contrato", "requires": ["oficina"], "hints": [
+			"Sobre el escritorio hay una nota con la pista de la clave.",
+			"La clave es el año en que se fundó Bucaramanga; está en la placa del monumento del parque (y en una de las postales).",
+			"La clave es 1622.",
+		]},
+		{"id": "tirolesa", "title": "Escapa por la tirolesa hacia el parque", "requires": ["caja"], "checkpoint": true, "hints": [
+			"La tirolesa sale del borde oeste de la última terraza, junto a la oficina.",
+			"Párate junto al poste del borde oeste y pulsa Interactuar.",
+			"Si te persiguen en la terraza, corre hacia el poste: la tirolesa te deja en el mirador del parque.",
+		]},
+		{"id": "puente", "title": "Cruza el Puente de la Novena antes del amanecer", "requires": ["tirolesa"], "hints": [
+			"El puente está al sur del parque, sobre la cañada. Lucía transmite al otro lado.",
+			"Baja del mirador, cruza el parque hacia el sur y la calle sur hasta el puente.",
+			"Evita la patrulla del cruce de la calle sur: entra al puente por el andén del parque.",
+		]},
+	],
 	"robo_plaza": [
 		{"id": "testigo", "title": "Habla con Doña Rosa, la testigo", "requires": [], "hints": [
 			"Doña Rosa atiende el kiosco junto a la calle, al oeste del punto de inicio.",

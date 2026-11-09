@@ -72,6 +72,16 @@ var _banner_title: Label
 var _banner_text: Label
 var _last_lives := -99
 var _last_wanted := -1
+# Cinemáticas (franjas negras) y título de zona.
+var _letterbox: Control
+var _bars: Array[ColorRect] = []
+var _caption: Label
+var _skip_hint: Label
+var _zone_card: VBoxContainer
+var _zone_title: Label
+var _zone_sub: Label
+var _zone_line: ColorRect
+var _zone_tween: Tween
 
 
 func _ready() -> void:
@@ -89,6 +99,8 @@ func _ready() -> void:
 	_build_discovery()
 	_build_profile()
 	_build_banner()
+	_build_cinematic()
+	_build_zone_card()
 	_capture = _outlined("Haz clic para controlar la cámara", 18)
 	UiStyle.place(_capture, Vector4(0.5, 1, 0.5, 1), Vector4(-250, -230, 250, -200))
 	_capture.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -103,6 +115,8 @@ func _ready() -> void:
 	EventBus.interaction_prompt_changed.connect(_on_prompt)
 	EventBus.notify.connect(_on_notify)
 	EventBus.hidden_changed.connect(_on_hidden)
+	EventBus.cinematic_changed.connect(_on_cinematic)
+	EventBus.zone_entered.connect(show_zone)
 	# Con la pausa o un panel abiertos, los avisos flotantes no deben verse detrás.
 	EventBus.pause_changed.connect(func(paused: bool) -> void:
 		_discovery.visible = not paused and _discovery_timer > 0.0
@@ -738,6 +752,101 @@ func _on_achievement(id: String) -> void:
 	var a: Dictionary = Chapters.ACHIEVEMENTS.get(id, {})
 	AudioManager.sfx("achievement")
 	_on_notify("Logro: %s · %s" % [a.get("name", id), a.get("text", "")])
+
+
+# ---------------------------------------------------------------------------
+# Cinemáticas y zonas
+# ---------------------------------------------------------------------------
+func _build_cinematic() -> void:
+	_letterbox = Control.new()
+	_letterbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_letterbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_letterbox.visible = false
+	add_child(_letterbox)
+	for top: bool in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = Color(0, 0, 0, 1)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if top:
+			UiStyle.place(bar, Vector4(0, 0, 1, 0), Vector4(0, 0, 0, 0))
+		else:
+			UiStyle.place(bar, Vector4(0, 1, 1, 1), Vector4(0, 0, 0, 0))
+		_letterbox.add_child(bar)
+		_bars.append(bar)
+	_caption = _outlined("", 22)
+	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UiStyle.place(_caption, Vector4(0.5, 1, 0.5, 1), Vector4(-460, -150, 460, -96))
+	_letterbox.add_child(_caption)
+	_skip_hint = UiStyle.label("Interactuar, Saltar o clic para saltar", 13, UiStyle.TEXT_DIM)
+	_skip_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	UiStyle.place(_skip_hint, Vector4(1, 1, 1, 1), Vector4(-360, -40, -24, -16))
+	_letterbox.add_child(_skip_hint)
+
+
+func _on_cinematic(active: bool, caption: String) -> void:
+	var bar_h := 84.0
+	if active:
+		_root.visible = false
+		if not _letterbox.visible:
+			_letterbox.visible = true
+			for i in _bars.size():
+				var b := _bars[i]
+				b.offset_top = 0.0 if i == 0 else 0.0
+				b.offset_bottom = 0.0
+				var tw := b.create_tween()
+				if i == 0:
+					tw.tween_property(b, "offset_bottom", bar_h, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+				else:
+					tw.tween_property(b, "offset_top", -bar_h, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_caption.text = caption
+		_caption.modulate.a = 0.0
+		_caption.create_tween().tween_property(_caption, "modulate:a", 1.0, 0.5)
+	else:
+		_letterbox.visible = false
+		_root.visible = true
+
+
+func _build_zone_card() -> void:
+	_zone_card = VBoxContainer.new()
+	_zone_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_zone_card.alignment = BoxContainer.ALIGNMENT_CENTER
+	_zone_card.add_theme_constant_override("separation", 6)
+	UiStyle.place(_zone_card, Vector4(0.5, 0.2, 0.5, 0.2), Vector4(-360, -50, 360, 70))
+	_root.add_child(_zone_card)
+	_zone_sub = UiStyle.overline("", UiStyle.ACCENT, 14)
+	_zone_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_zone_card.add_child(_zone_sub)
+	_zone_title = UiStyle.title("", 44, UiStyle.TEXT, 3)
+	_zone_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_zone_title.add_theme_constant_override("outline_size", 10)
+	_zone_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	_zone_card.add_child(_zone_title)
+	_zone_line = ColorRect.new()
+	_zone_line.color = UiStyle.ACCENT
+	_zone_line.custom_minimum_size = Vector2(0, 2)
+	_zone_line.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_zone_card.add_child(_zone_line)
+	_zone_card.modulate.a = 0.0
+	_zone_card.visible = false
+
+
+## Título grande al descubrir un lugar («Parque de las Palmas»).
+func show_zone(title: String, subtitle: String) -> void:
+	_zone_title.text = title.to_upper()
+	_zone_sub.text = subtitle.to_upper()
+	_zone_card.visible = true
+	_zone_card.modulate.a = 0.0
+	_zone_line.custom_minimum_size.x = 0.0
+	AudioManager.sfx("zone")
+	if _zone_tween != null:
+		_zone_tween.kill()
+	_zone_tween = _zone_card.create_tween()
+	_zone_tween.tween_property(_zone_card, "modulate:a", 1.0, 0.6)
+	_zone_tween.parallel().tween_property(_zone_line, "custom_minimum_size:x", 260.0, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_zone_tween.tween_interval(2.4)
+	_zone_tween.tween_property(_zone_card, "modulate:a", 0.0, 0.8)
+	_zone_tween.tween_callback(func() -> void: _zone_card.visible = false)
 
 
 func _show_banner(title: String, text: String) -> void:

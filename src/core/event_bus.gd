@@ -21,3 +21,11 @@ signal mission_completed
 signal noise(position: Vector3, radius: float, source: String)
 ## El jugador escaló algo (para pruebas y efectos).
 signal player_vaulted(height: float)
+
+# --- Gran huida (v0.6): cámara, zonas y efectos ---
+## El jugador entró por primera vez a una zona con nombre (título en pantalla).
+signal zone_entered(title: String, subtitle: String)
+## Sacudida de cámara (0..1). La suma la cámara y se desvanece sola.
+signal camera_shake(amount: float)
+## Empieza o termina una cinemática (franjas negras, HUD oculto).
+signal cinematic_changed(active: bool, caption: String)

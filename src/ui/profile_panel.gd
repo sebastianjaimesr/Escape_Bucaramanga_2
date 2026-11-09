@@ -8,8 +8,8 @@ extends VBoxContainer
 
 signal closed
 
-const TABS := ["skills", "shop", "achievements"]
-const TAB_NAMES := {"skills": "Habilidades", "shop": "Tienda", "achievements": "Logros"}
+const TABS := ["skills", "shop", "achievements", "stats"]
+const TAB_NAMES := {"skills": "Habilidades", "shop": "Tienda", "achievements": "Logros", "stats": "Estadísticas"}
 
 var tab := "skills"
 var _level: Label
@@ -56,7 +56,7 @@ func _ready() -> void:
 	add_child(tabs)
 	for t: String in TABS:
 		var b := UiStyle.button(TAB_NAMES[t], 0)
-		b.custom_minimum_size = Vector2(110, 40)
+		b.custom_minimum_size = Vector2(104, 40)
 		b.toggle_mode = true
 		# La pestaña elegida se ve ámbar (no solo con el foco).
 		b.add_theme_stylebox_override("pressed", UiStyle.box(Color(UiStyle.ACCENT, 0.22), UiStyle.ACCENT, 8, 2))
@@ -111,6 +111,8 @@ func refresh() -> void:
 				_shop_row(id)
 		"achievements":
 			_achievements()
+		"stats":
+			_stats()
 
 
 func _row(icon: String, title: String, text: String, done: bool) -> HBoxContainer:
@@ -173,6 +175,26 @@ func _achievements() -> void:
 	for c: Dictionary in Chapters.COLLECTIBLES:
 		if PlayerProfile.has_collectible(c["id"]):
 			_row("postcard", c["name"], c["fact"], true)
+
+
+## Estadísticas acumuladas y récords por capítulo.
+func _stats() -> void:
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 6)
+	_list.add_child(grid)
+	for key: String in PlayerProfile.STAT_KEYS:
+		grid.add_child(UiStyle.label(PlayerProfile.STAT_KEYS[key], 16, UiStyle.TEXT_DIM))
+		grid.add_child(UiStyle.label(PlayerProfile.stat_text(key), 16, UiStyle.TEXT, 600))
+	_list.add_child(UiStyle.label("Récords por capítulo", 17, UiStyle.ACCENT, 600))
+	for c: Dictionary in Chapters.LIST:
+		var rec: Dictionary = PlayerProfile.chapters.get(c["id"], {})
+		var text := "Sin terminar"
+		if bool(rec.get("done", false)):
+			var t := int(float(rec.get("time", 0.0)))
+			text = "Mejor tiempo %d:%02d · %s" % [t / 60, t % 60, rec.get("rank", "")]
+		_row("trophy" if bool(rec.get("done", false)) else "lock", "%d. %s" % [int(c["number"]), c["title"]], text, bool(rec.get("done", false)))
 
 
 func first_focus() -> Control:

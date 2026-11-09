@@ -35,6 +35,23 @@ var achievements: Array[String] = []
 var collectibles: Array[String] = []
 ## id del capítulo -> {"done": bool, "rank": String, "time": float}
 var chapters: Dictionary = {}
+## Estadísticas acumuladas (pantalla «Estadísticas» del perfil). Ver STAT_KEYS.
+var stats: Dictionary = {}
+
+## Estadística -> nombre que se muestra.
+const STAT_KEYS := {
+	"play_time": "Tiempo jugado",
+	"chapters_won": "Capítulos superados",
+	"jumps": "Saltos",
+	"vaults": "Muros escalados",
+	"slides": "Deslizadas",
+	"rolls": "Rodadas",
+	"cans": "Latas lanzadas",
+	"caught": "Veces atrapado",
+	"ziplines": "Viajes en tirolesa",
+	"drone_alarms": "Alarmas de dron",
+	"distance": "Metros recorridos",
+}
 
 
 func _ready() -> void:
@@ -214,8 +231,10 @@ func find_collectible(id: String) -> bool:
 		skill_points += 1
 	if collectibles.size() >= 5:
 		unlock_achievement("postales_5")
-	if collectibles.size() >= Chapters.COLLECTIBLES.size():
+	if collectibles.size() >= 10:
 		unlock_achievement("postales_10")
+	if collectibles.size() >= Chapters.COLLECTIBLES.size():
+		unlock_achievement("postales_15")
 	changed.emit()
 	save()
 	return true
@@ -271,10 +290,11 @@ func complete_chapter(id: String, stats: Dictionary) -> Dictionary:
 	record["rank"] = _better_rank(str(record.get("rank", "")), str(stats.get("rank", "")))
 	chapters[id] = record
 	change_reputation(5 if first else 1)
+	add_stats({"chapters_won": 1})
 	add_money(cash)
 	add_xp(gained, "Capítulo")
 	var chapter_achievement := {"malentendido": "caso_cerrado", "robo_plaza": "natillera",
-			"callejon": "sombra_noche", "persecucion": "a_salvo"}
+			"callejon": "sombra_noche", "persecucion": "a_salvo", "gran_huida": "gran_huida"}
 	if chapter_achievement.has(id):
 		unlock_achievement(chapter_achievement[id])
 	if not bool(stats.get("chased", true)):
@@ -301,6 +321,34 @@ func _better_rank(a: String, b: String) -> String:
 
 
 # ---------------------------------------------------------------------------
+# Estadísticas
+# ---------------------------------------------------------------------------
+## Suma valores a las estadísticas (solo las de STAT_KEYS).
+func add_stats(values: Dictionary) -> void:
+	for k: Variant in values:
+		if STAT_KEYS.has(str(k)):
+			stats[str(k)] = float(stats.get(str(k), 0.0)) + float(values[k])
+	changed.emit()
+	save()
+
+
+func stat(key: String) -> float:
+	return float(stats.get(key, 0.0))
+
+
+## Texto listo para mostrar (el tiempo en h y min, la distancia en km).
+func stat_text(key: String) -> String:
+	var v := stat(key)
+	match key:
+		"play_time":
+			var m := int(v / 60.0)
+			return "%d h %02d min" % [m / 60, m % 60] if m >= 60 else "%d min" % m
+		"distance":
+			return "%.1f km" % (v / 1000.0) if v >= 1000.0 else "%d m" % int(v)
+	return str(int(v))
+
+
+# ---------------------------------------------------------------------------
 # Guardado
 # ---------------------------------------------------------------------------
 func reset() -> void:
@@ -313,6 +361,7 @@ func reset() -> void:
 	achievements.clear()
 	collectibles.clear()
 	chapters.clear()
+	stats.clear()
 	changed.emit()
 
 
@@ -322,7 +371,7 @@ func save() -> bool:
 	var cfg := ConfigFile.new()
 	cfg.set_value("perfil", "version", VERSION)
 	for key: String in ["xp", "money", "reputation", "skill_points", "skills", "items",
-			"achievements", "collectibles", "chapters"]:
+			"achievements", "collectibles", "chapters", "stats"]:
 		cfg.set_value("perfil", key, get(key))
 	var tmp := path + ".tmp"
 	if cfg.save(tmp) != OK:
@@ -359,6 +408,11 @@ func load_profile() -> void:
 		for k: Variant in ch:
 			if Chapters.index_of(str(k)) >= 0 and ch[k] is Dictionary:
 				chapters[str(k)] = ch[k]
+	var st: Variant = cfg.get_value("perfil", "stats", {})
+	if st is Dictionary:
+		for k: Variant in st:
+			if STAT_KEYS.has(str(k)):
+				stats[str(k)] = maxf(0.0, float(st[k]))
 	changed.emit()
 
 

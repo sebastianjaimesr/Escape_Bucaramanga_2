@@ -66,6 +66,9 @@ var respawn_yaw := 0.0
 ## La chaqueta de la tienda se puede usar una vez por capítulo.
 var jacket_used := false
 
+var _cans_thrown := 0
+var _distance := 0.0
+var _last_pos := Vector3.INF
 var _granizado_ready_at := 0.0
 var _grace := 0.0
 var _autosave := AUTOSAVE_SECONDS
@@ -104,7 +107,31 @@ func _ready() -> void:
 	if PlayerProfile.has_item("termo"):
 		world.player.drink_granizado(20.0)
 	world.player.cans = PlayerProfile.cans_per_chapter()
+	EventBus.noise.connect(func(_at: Vector3, _r: float, source: String) -> void:
+		if source == "lata":
+			_cans_thrown += 1)
 	world.player.disguise_requested.connect(_on_disguise)
+
+
+## Suma al perfil lo que se hizo en esta partida (también si se sale a mitad).
+func _exit_tree() -> void:
+	var p := world.player if world != null else null
+	if p == null:
+		return
+	PlayerProfile.add_stats({
+		"play_time": elapsed, "jumps": p.jump_count, "vaults": p.vault_count, "slides": p.slide_count,
+		"rolls": p.roll_count, "caught": caught_count, "cans": _cans_thrown, "distance": _distance,
+		"drone_alarms": _drone_alarms(),
+	})
+	if PlayerProfile.stat("rolls") >= 10.0:
+		PlayerProfile.unlock_achievement("acrobata")
+
+
+func _drone_alarms() -> int:
+	var n := 0
+	for d in get_tree().get_nodes_in_group("drone"):
+		n += (d as SurveillanceDrone).alarms
+	return n
 
 
 func _physics_process(delta: float) -> void:
@@ -124,6 +151,12 @@ func _physics_process(delta: float) -> void:
 			_set_police_active(true)
 	if alert_level() == 2:
 		was_chased = true
+	var pos := world.player.global_position
+	if _last_pos != Vector3.INF and world.player.is_on_floor():
+		var step := Vector2(pos.x - _last_pos.x, pos.z - _last_pos.z).length()
+		if step < 2.0:
+			_distance += step
+	_last_pos = pos
 	_tick(delta)
 	_autosave -= delta
 	if _autosave <= 0.0:
@@ -173,6 +206,16 @@ func victory_text() -> String:
 ## capítulo 2): {"label", "value" 0..1, "danger" 0..1, "icon"} o {} si no hay.
 func hud_meter() -> Dictionary:
 	return {}
+
+
+## Textos del teclado de 4 dígitos si el capítulo tiene uno (ver CodeLockPanel).
+func code_panel() -> Dictionary:
+	return {}
+
+
+## Prueba una clave del teclado. true si abre.
+func try_code(_code: String) -> bool:
+	return false
 
 
 func use_item(item_id: String) -> void:
@@ -507,11 +550,11 @@ func _spawn_friends(on_talk: Callable, prompt: String = "Hablar con tus amigos")
 
 
 func _spawn_pedestrians() -> void:
-	var sidewalk := PackedVector3Array([
+	var sidewalk: PackedVector3Array = points.get("sidewalk_route", PackedVector3Array([
 		Vector3(-20, 0.15, -6.2), Vector3(-45, 0.15, -6.2), Vector3(20, 0.15, 6.2), Vector3(48, 0.15, 6.2),
 		Vector3(6.2, 0.15, 20), Vector3(6.2, 0.15, 48), Vector3(-6.2, 0.15, -20), Vector3(-6.2, 0.15, -40),
 		Vector3(-14, 0.15, 44), Vector3(-10, 0.15, 14),
-	])
+	]))
 	var looks := [
 		{"skin": Color(0.8, 0.62, 0.5), "shirt": Color(0.85, 0.3, 0.5), "pants": Color(0.2, 0.2, 0.25), "hair_style": "long"},
 		{"skin": Color(0.5, 0.35, 0.25), "shirt": Color(0.9, 0.9, 0.85), "pants": Color(0.35, 0.3, 0.2)},
@@ -551,8 +594,9 @@ func spawn_officer(route: PackedVector3Array, officer: PoliceOfficer = null) -> 
 
 
 func _spawn_collectibles() -> void:
+	var map := str(points.get("map", "manzana"))
 	for c: Dictionary in Chapters.COLLECTIBLES:
-		if PlayerProfile.has_collectible(c["id"]):
+		if str(c.get("map", "manzana")) != map or PlayerProfile.has_collectible(c["id"]):
 			continue
 		var item := Collectible.new(c["id"], c["name"], c["fact"])
 		item.position = c["position"]

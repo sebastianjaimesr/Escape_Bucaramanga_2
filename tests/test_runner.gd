@@ -28,6 +28,7 @@ func _ready() -> void:
 	PlayerProfile.path = TEST_PROFILE
 	PlayerProfile.reset()
 	GameSession.save_enabled = false
+	GameSession.cinematics_enabled = false
 	_remove_test_settings()
 	Settings.load_settings()
 	InputConfig.apply_all()
@@ -108,6 +109,24 @@ func _ready() -> void:
 		"test_continue_saved_chapter",
 		"test_chapter_select_and_profile_pages",
 		"test_victory_screen_rewards",
+		# Versión 0.6: la gran huida
+		"test_cabecera_builds",
+		"test_rooftop_running_jump",
+		"test_rooftop_walking_jump_falls",
+		"test_hard_landing_and_roll",
+		"test_high_fall_costs_heart",
+		"test_zipline_ride",
+		"test_drone_detects_and_tracks",
+		"test_drone_ignores_hidden_player",
+		"test_gran_huida_full_run",
+		"test_gran_huida_wrong_code",
+		"test_dawn_runs_out",
+		"test_gran_huida_continue",
+		"test_cinematic_blocks_input_and_skips",
+		"test_camera_shake_decays",
+		"test_zone_title_card",
+		"test_profile_stats",
+		"test_menu_credits_and_stats",
 	]:
 		# TEST_ONLY=prueba1,prueba2 corre solo esas (para depurar).
 		var only := OS.get_environment("TEST_ONLY")
@@ -1350,7 +1369,7 @@ func test_slide_from_run() -> void:
 func test_collectible_pickup() -> void:
 	await spawn_world()
 	var m := world.mission
-	check(m.collectibles.size() == Chapters.COLLECTIBLES.size(), "Están todas las postales")
+	check(m.collectibles.size() == _map_collectibles("manzana"), "Están todas las postales de la manzana")
 	var c := m.collectibles[0]
 	var id := c.id
 	var money := PlayerProfile.money
@@ -1363,7 +1382,15 @@ func test_collectible_pickup() -> void:
 	world = null
 	await get_tree().process_frame
 	await spawn_world()
-	check(world.mission.collectibles.size() == Chapters.COLLECTIBLES.size() - 1, "Una postal recogida no vuelve a aparecer")
+	check(world.mission.collectibles.size() == _map_collectibles("manzana") - 1, "Una postal recogida no vuelve a aparecer")
+
+
+func _map_collectibles(map: String) -> int:
+	var n := 0
+	for c: Dictionary in Chapters.COLLECTIBLES:
+		if str(c.get("map", "manzana")) == map:
+			n += 1
+	return n
 
 
 # ---------------------------------------------------------------------------
@@ -1537,7 +1564,7 @@ func test_chapter4_chase_and_disguise() -> void:
 	await place(world.points["meeting_point"], 0.0)
 	await frames(5)
 	check(m.finished and not m.failed, "Llegar al refugio gana el capítulo 4")
-	check(world.overlay.is_showing() and not world.overlay._next.visible, "Es el último capítulo por ahora")
+	check(world.overlay.is_showing() and world.overlay._next.visible, "Después viene el capítulo 5")
 
 
 func test_continue_saved_chapter() -> void:
@@ -1609,3 +1636,290 @@ func test_victory_screen_rewards() -> void:
 	check(world.overlay._next.visible and world.overlay._next.text == "Siguiente capítulo", "Botón al capítulo 2")
 	check(PlayerProfile.money > 0 and PlayerProfile.xp > 0, "El perfil recibe XP y dinero")
 	check(PlayerProfile.is_chapter_unlocked("robo_plaza"), "Se abre el capítulo 2")
+
+
+# ---------------------------------------------------------------------------
+# Versión 0.6: Cabecera y «La gran huida»
+# ---------------------------------------------------------------------------
+func _gh() -> GranHuidaMission:
+	return world.mission as GranHuidaMission
+
+
+func test_cabecera_builds() -> void:
+	await spawn_chapter("gran_huida")
+	check(world.points.get("map", "") == "cabecera", "El capítulo 5 carga el distrito de Cabecera")
+	check(world.map_half == CabeceraBuilder.HALF, "El área de Cabecera es más grande (140 m)")
+	check(int(world.points.get("palms", 0)) >= 30, "Hay palmas en el parque y la avenida (%d)" % int(world.points.get("palms", 0)))
+	check(world.points.has("bridge_end") and world.points.has("zip_start") and world.points.has("safe"), "Están el puente, la tirolesa y la caja fuerte")
+	check(world.get_tree().get_nodes_in_group("zone").size() >= 4, "Hay zonas con nombre")
+	check(world.mission.collectibles.size() == _map_collectibles("cabecera"), "Solo aparecen las postales de Cabecera")
+	check(_gh().drones.size() == 1, "Un dron vigila las terrazas desde el principio")
+	check(player.is_on_floor(), "Sebastián empieza parado en el parque")
+	check(NavigationServer3D.map_get_regions(world.get_world_3d().navigation_map).size() > 0, "Hay malla de navegación")
+	# El parque se puede caminar.
+	var start := player.global_position
+	world.camera_rig.yaw = player.facing_yaw
+	await hold(["move_forward"], 1.0)
+	check(flat(player.global_position - start).length() > 1.5, "Se camina por el parque")
+
+
+## Salta de la terraza 3 a la 4 (3 m de callejón y 0,8 m más alta) en carrera.
+func _roof_jump(run: bool) -> void:
+	await spawn_chapter("gran_huida")
+	var top := CabeceraBuilder.roof_top(2)
+	await place(Vector3(19.0, top, 0.5), 0.0)
+	await frames(10)
+	var actions := ["move_forward", "run"] if run else ["move_forward"]
+	for a: String in actions:
+		Input.action_press(a)
+	var jumped := false
+	for i in 300:
+		await frames(1)
+		if not jumped and player.global_position.z < -5.55:
+			Input.action_press("jump")
+			jumped = true
+		if jumped and player.is_on_floor() and player.global_position.z < -6.5:
+			break
+	await frames(30)
+	_release_all()
+	await frames(10)
+
+
+func test_rooftop_running_jump() -> void:
+	await _roof_jump(true)
+	check(player.global_position.y > CabeceraBuilder.roof_top(3) - 0.2, "Corriendo se alcanza la terraza 4 (y=%.2f)" % player.global_position.y)
+	check(player.global_position.z < -9.0, "Quedó del otro lado del callejón")
+
+
+func test_rooftop_walking_jump_falls() -> void:
+	await _roof_jump(false)
+	check(player.global_position.y < CabeceraBuilder.roof_top(3) - 1.0, "Caminando no alcanza: cae al callejón (y=%.2f)" % player.global_position.y)
+
+
+func test_hard_landing_and_roll() -> void:
+	await spawn_chapter("gran_huida")
+	var spot := Vector3(-50.0, 0.15, -20.0)
+	await place(spot + Vector3.UP * 6.5, 0.0)
+	await frames(90)
+	check(player.hard_land_count == 1, "Caer de 6,5 m sin rodar aturde")
+	await frames(40)
+	check(player.state_machine.current_name != &"HardLand", "El aturdimiento pasa")
+	Input.action_press("crouch")
+	await place(spot + Vector3.UP * 6.5, 0.0)
+	await frames(90)
+	Input.action_release("crouch")
+	check(player.roll_count >= 1, "Agachado al caer, rueda")
+	check(player.hard_land_count == 1, "Rodando no se aturde")
+
+
+func test_high_fall_costs_heart() -> void:
+	await spawn_chapter("gran_huida")
+	var lives := world.mission.lives
+	await place(Vector3(-50.0, 12.5, -20.0), 0.0)
+	await frames(120)
+	check(world.mission.lives == lives - 1, "Caer de 12 m sin rodar cuesta un corazón")
+	Input.action_press("crouch")
+	await place(Vector3(-50.0, 12.5, -20.0), 0.0)
+	await frames(120)
+	Input.action_release("crouch")
+	check(world.mission.lives == lives - 1, "Rodando no se pierde corazón")
+
+
+func test_zipline_ride() -> void:
+	await spawn_chapter("gran_huida")
+	var m := _gh()
+	check(not m.zipline.enabled, "La tirolesa está cerrada al principio")
+	for id: String in ["periodista", "terrazas", "oficina"]:
+		m._complete(id)
+	check(m.try_code(GranHuidaMission.SAFE_CODE), "La clave 1622 abre la caja fuerte")
+	await frames(5)
+	check(m.zipline.enabled and m.inventory.has("contrato"), "Con el contrato se habilita la tirolesa")
+	await place(m.zipline.start, -PI * 0.5)
+	m.zipline.ride(player)
+	await frames(2)
+	check(player.state_machine.current_name == &"Zipline", "Sebastián va colgado")
+	check(player.visual.pose == "hang", "Con la postura de colgado")
+	await seconds(5.0)
+	check(flat(player.global_position - m.zipline.end).length() < 2.5, "Llega al mirador del parque")
+	check(m.is_done("tirolesa") and m.dawn_running, "Empieza la cuenta del amanecer")
+	check(m.hud_meter().has("label"), "El HUD muestra la barra del amanecer")
+
+
+func _drone_over_player() -> SurveillanceDrone:
+	var m := _gh()
+	var p := player.global_position
+	var d := m._spawn_drone(PackedVector3Array([p + Vector3(-1.6, 0, 0.01), p + Vector3(-1.6, 0, 0.02)]))
+	d.active = true
+	m._grace = 0.0
+	return d
+
+
+func test_drone_detects_and_tracks() -> void:
+	await spawn_chapter("gran_huida")
+	await place(Vector3(-50.0, 0.15, 10.0), 0.0)
+	var d := await _drone_over_player()
+	d.global_position = player.global_position + Vector3(0, SurveillanceDrone.ALTITUDE, 1.6)
+	await seconds(2.0)
+	check(d.alarms >= 1, "El dron da la alarma si te quedas en su luz")
+	check(d.state == SurveillanceDrone.State.TRACK, "Y te sigue")
+	check(world.mission.wanted.level >= 2, "Sube la búsqueda")
+	# Corriendo se le gana y termina perdiéndote.
+	world.camera_rig.yaw = 0.0
+	player.drink_granizado(30.0)
+	await hold(["move_forward", "run"], 6.0)
+	await seconds(SurveillanceDrone.LOSE_TIME + 1.0)
+	check(d.state != SurveillanceDrone.State.TRACK, "Al perderte deja de seguirte")
+
+
+func test_drone_ignores_hidden_player() -> void:
+	await spawn_chapter("gran_huida")
+	var spot: Dictionary = world.points["hiding_spots"][0]
+	await place(spot["position"], 0.0)
+	Input.action_press("crouch")
+	await frames(10)
+	var d := await _drone_over_player()
+	await seconds(2.5)
+	Input.action_release("crouch")
+	check(player.is_hidden(), "Está escondido en el matorral")
+	check(d.alarms == 0, "El dron no ve a quien se esconde agachado")
+
+
+func test_gran_huida_full_run() -> void:
+	await spawn_chapter("gran_huida")
+	var m := _gh()
+	check(m.current_step().get("id", "") == "periodista", "Primero hay que hablar con Lucía")
+	m.lucia.interactable.interact(player)
+	check(m.is_done("periodista") and m.stairs_beacon.active, "Lucía da la misión y aparece la escalera")
+	await place(CabeceraBuilder.roof_center(0), 0.0)
+	await frames(10)
+	check(m.is_done("terrazas"), "Subir a la terraza cumple el objetivo")
+	await place(world.points["office_door"], -PI * 0.5)
+	await frames(10)
+	check(m.is_done("oficina"), "Llegar a la puerta de la oficina")
+	m.safe.interactable.interact(player)
+	await frames(3)
+	check(world.escape_ui.code_lock.is_open, "La caja fuerte abre el teclado")
+	check(world.escape_ui.code_lock.texts["button"] == "Abrir", "Con los textos de la caja fuerte")
+	world.escape_ui.code_lock.close()
+	await frames(3)
+	check(m.try_code("1622"), "La clave abre la caja")
+	await frames(10)
+	check(m.alarm_raised and m.wanted.level >= 3, "Robar el contrato dispara la alarma")
+	check(m.drones.size() == 3, "Salen dos drones más")
+	m.zipline.ride(player)
+	await seconds(5.0)
+	check(m.is_done("tirolesa"), "La tirolesa lleva al parque")
+	await place(world.points["finish"], 0.0)
+	await frames(15)
+	check(m.finished and not m.failed, "Llegar con Lucía gana el capítulo 5")
+	check(PlayerProfile.is_chapter_done("gran_huida"), "El capítulo queda terminado en el perfil")
+	check(PlayerProfile.has_achievement("gran_huida"), "Da el logro «La gran huida»")
+
+
+func test_gran_huida_wrong_code() -> void:
+	await spawn_chapter("gran_huida")
+	var m := _gh()
+	for id: String in ["periodista", "terrazas", "oficina"]:
+		m._complete(id)
+	check(not m.try_code("1742"), "La clave del capítulo 1 no sirve aquí")
+	check(m.wrong_answers == 1 and not m.is_done("caja"), "Cuenta el error y no abre")
+
+
+func test_dawn_runs_out() -> void:
+	await spawn_chapter("gran_huida")
+	var m := _gh()
+	for id: String in ["periodista", "terrazas", "oficina", "caja"]:
+		m._complete(id)
+	m._on_zip_arrived()
+	m.dawn_left = 0.5
+	await seconds(1.0)
+	check(m.failed, "Si sale el sol antes del puente, se pierde")
+	await frames(5)
+	check(world.overlay._title.text == "Lucía tuvo que irse", "Con su propia pantalla")
+
+
+func test_gran_huida_continue() -> void:
+	GameSession.save_enabled = true
+	await spawn_chapter("gran_huida")
+	var m := _gh()
+	for id: String in ["periodista", "terrazas", "oficina"]:
+		m._complete(id)
+	m.save_progress()
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	GameSession.continue_game()
+	check(GameSession.chapter == "gran_huida", "Continuar recuerda el capítulo 5")
+	await spawn_world()
+	check(_gh().is_done("oficina"), "Se cargan los objetivos")
+	check(flat(player.global_position - (world.points["office_door"] as Vector3)).length() < 2.0, "Se vuelve a la puerta de la oficina")
+	GameSession.save_enabled = false
+
+
+func test_cinematic_blocks_input_and_skips() -> void:
+	GameSession.cinematics_enabled = true
+	await spawn_chapter("gran_huida")
+	GameSession.cinematics_enabled = false
+	var m := _gh()
+	check(m.cinematic.playing, "El capítulo 5 empieza con una cinemática")
+	check(not player.input_enabled, "Mientras dura, Sebastián no se mueve")
+	check(not world.hud._root.visible and world.hud._letterbox.visible, "Franjas negras y HUD oculto")
+	await press_action("interact")
+	await frames(3)
+	check(not m.cinematic.playing, "Interactuar la salta")
+	check(player.input_enabled and world.camera_rig.camera.current, "Vuelve el control y la cámara del juego")
+	check(world.hud._root.visible, "Vuelve el HUD")
+
+
+func test_camera_shake_decays() -> void:
+	await spawn_world()
+	EventBus.camera_shake.emit(0.9)
+	await frames(3)
+	var cam := world.camera_rig.camera
+	check(absf(cam.h_offset) + absf(cam.v_offset) > 0.001, "La cámara se sacude")
+	await seconds(1.2)
+	check(cam.h_offset == 0.0 and cam.v_offset == 0.0, "Y se calma sola")
+
+
+func test_zone_title_card() -> void:
+	await spawn_chapter("gran_huida")
+	await frames(5)
+	check(world.hud._zone_card.visible and world.hud._zone_title.text == "PARQUE DE LAS PALMAS", "Al empezar en el parque aparece su nombre")
+	await place(world.points["bridge_start"] + Vector3(0, 0, 3.0), 0.0)
+	await frames(5)
+	check(world.hud._zone_title.text == "PUENTE DE LA NOVENA", "Al llegar al puente aparece su nombre")
+
+
+func test_profile_stats() -> void:
+	await spawn_world()
+	world.camera_rig.yaw = player.facing_yaw
+	await hold(["move_forward", "jump"], 0.6)
+	await seconds(1.0)
+	var jumps := player.jump_count
+	check(jumps >= 1, "Cuenta los saltos")
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	check(PlayerProfile.stat("jumps") >= jumps, "Al salir se suman al perfil")
+	check(PlayerProfile.stat("play_time") > 0.5, "Y el tiempo jugado")
+	check(PlayerProfile.stat_text("play_time").ends_with("min"), "El tiempo se muestra en minutos")
+
+
+func test_menu_credits_and_stats() -> void:
+	var menu: MainMenu = (load("res://scenes/ui/main_menu.tscn") as PackedScene).instantiate()
+	add_child(menu)
+	await frames(5)
+	menu._show_page("credits", false)
+	await frames(3)
+	check(menu._pages.has("credits") and (menu._pages["credits"] as Control).visible, "Hay página de créditos")
+	var esc := InputEventAction.new()
+	esc.action = "ui_cancel"
+	esc.pressed = true
+	Input.parse_input_event(esc)
+	await frames(3)
+	check((menu._pages["home"] as Control).visible, "Esc vuelve a la portada desde los créditos")
+	menu._open_profile("stats")
+	await frames(3)
+	check((menu._pages["profile"] as ProfilePanel).tab == "stats", "El perfil tiene estadísticas")
+	menu.queue_free()
+	await frames(2)

@@ -9,6 +9,8 @@ const SIZE := 190.0
 var mission: Mission
 var _footprints: Array = []
 var _half := 60.0
+## Distritos con su propio trazado: [Rect2, Color] (calles, parque, cañada).
+var _rects: Array = []
 
 
 func _ready() -> void:
@@ -16,7 +18,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if mission != null:
 		_footprints = mission.points.get("footprints", [])
-		_half = PrototypeBlockBuilder.HALF_SIZE
+		_half = float(mission.points.get("map_half", PrototypeBlockBuilder.HALF_SIZE))
+		_rects = mission.points.get("minimap_rects", [])
 
 
 func _process(_delta: float) -> void:
@@ -29,10 +32,16 @@ func to_map(p: Vector3) -> Vector2:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(SIZE, SIZE)), Color(0.3, 0.3, 0.3, 0.85))
-	# Calles (las dos que se cruzan en el centro).
-	var street := PrototypeBlockBuilder.STREET_HALF / (_half * 2.0) * SIZE
-	draw_rect(Rect2(0, SIZE * 0.5 - street, SIZE, street * 2.0), Color(0.16, 0.16, 0.18))
-	draw_rect(Rect2(SIZE * 0.5 - street, 0, street * 2.0, SIZE), Color(0.16, 0.16, 0.18))
+	if _rects.is_empty():
+		# Manzana: las dos calles que se cruzan en el centro.
+		var street := PrototypeBlockBuilder.STREET_HALF / (_half * 2.0) * SIZE
+		draw_rect(Rect2(0, SIZE * 0.5 - street, SIZE, street * 2.0), Color(0.16, 0.16, 0.18))
+		draw_rect(Rect2(SIZE * 0.5 - street, 0, street * 2.0, SIZE), Color(0.16, 0.16, 0.18))
+	for entry: Array in _rects:
+		var rr: Rect2 = entry[0]
+		var ra := to_map(Vector3(rr.position.x, 0, rr.position.y))
+		var rb := to_map(Vector3(rr.end.x, 0, rr.end.y))
+		draw_rect(Rect2(ra, rb - ra), entry[1])
 	for r: Rect2 in _footprints:
 		var a := to_map(Vector3(r.position.x, 0, r.position.y))
 		var b := to_map(Vector3(r.end.x, 0, r.end.y))

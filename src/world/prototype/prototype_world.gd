@@ -24,15 +24,24 @@ var modal_open := false
 var _modal: ModalPanel
 ## Las pruebas de movimiento lo apagan para que la policía no interfiera.
 var police_enabled := true
+## Mitad del lado del distrito cargado (60 m la manzana, 70 m Cabecera).
+var map_half := PrototypeBlockBuilder.HALF_SIZE
 
 
 func _ready() -> void:
 	_build_environment()
-	var builder := PrototypeBlockBuilder.new(self)
-	points = builder.build()
-	navigation = NavigationBuilder.bake(self, builder.root, PrototypeBlockBuilder.HALF_SIZE)
 	var chapter := Chapters.get_chapter(GameSession.chapter)
+	# Cada capítulo dice en qué distrito pasa: la manzana de la plaza o Cabecera.
+	var builder: PrototypeBlockBuilder
+	if str(chapter.get("map", "manzana")) == "cabecera":
+		builder = CabeceraBuilder.new(self)
+	else:
+		builder = PrototypeBlockBuilder.new(self)
+	points = builder.build()
+	map_half = builder.half_size
+	navigation = NavigationBuilder.bake(self, builder.root, map_half)
 	TimeOfDay.apply(self, str(chapter.get("time", "tarde")), bool(chapter.get("rain", false)))
+	_spawn_zones()
 	player = (load(PLAYER_SCENE) as PackedScene).instantiate()
 	add_child(player)
 	player.teleport(points["spawn"], points["spawn_yaw"])
@@ -62,6 +71,13 @@ func _ready() -> void:
 	Settings.changed.connect(_on_setting_changed)
 	AudioManager.play_music("explore")
 	AudioManager.play_ambient(true)
+
+
+## Zonas con nombre: al entrar por primera vez aparece su título en pantalla.
+func _spawn_zones() -> void:
+	for z: Dictionary in points.get("zones", []):
+		var zone := ZoneTrigger.new(str(z["name"]), str(z.get("sub", "")), z["aabb"])
+		add_child(zone)
 
 
 func _exit_tree() -> void:
