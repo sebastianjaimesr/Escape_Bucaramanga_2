@@ -321,6 +321,88 @@ def sfx_all():
     return out
 
 
+# ---------------------------------------------------------------------------
+# Versión 0.6: la gran huida
+# ---------------------------------------------------------------------------
+def music_finale():
+    """Huida final: 132 ppm, bajo en re que sube por terceras y un motivo de
+    cuerda pulsada que se repite; más brillante que la persecución."""
+    bpm = 132
+    beat = 60 / bpm
+    bars = 8
+    total = beat * 4 * bars + 1.5
+    x = np.zeros(int(total * SR))
+    roots = [38, 41, 43, 45]
+    for b in range(bars):
+        r = roots[b % 4]
+        add(x, pad([r + 12, r + 19, r + 24], beat * 4 + 1.5, cutoff=1800, amp=0.1), b * beat * 4)
+        for e in range(8):
+            at = (b * 8 + e) * beat * 0.5
+            t = t_axis(beat * 0.45)
+            bass = saw(midi(r + (12 if e % 2 else 0)), t) * np.exp(-t * 7) * 0.16
+            add(x, lowpass_fast(bass, 900), at)
+            if e % 2 == 0:
+                add(x, kick(0.5, f0=130, f1=45), at)
+            if e in (2, 6):
+                snare = lowpass_fast(rng.normal(0, 1, int(0.18 * SR)), 4500) * np.exp(-t_axis(0.18) * 18) * 0.35
+                add(x, snare, at)
+            add(x, tick(0.035, cutoff=9000), at + beat * 0.25)
+        motif = [r + 26, r + 29, r + 31, r + 33]
+        for k, n in enumerate(motif):
+            add(x, pluck(n, 1.2, 0.09, 0.7), b * beat * 4 + k * beat)
+    x = reverb(x, 0.22)
+    return seamless(x, 1.5)
+
+
+def loop_drone():
+    """Zumbido de dron: hélices (tono que ondula) más ruido de aire."""
+    sec = 4.0
+    t = t_axis(sec)
+    wob = 1 + 0.02 * np.sin(2 * np.pi * 0.5 * t)
+    buzz = sum(np.sin(2 * np.pi * f * wob * t) * a for f, a in ((180, 0.4), (360, 0.25), (540, 0.12), (720, 0.06)))
+    air = lowpass_fast(rng.normal(0, 1, len(t)), 1800) * 0.5
+    return seamless(buzz * 0.5 + air, 0.5)
+
+
+def loop_zipline():
+    """Roldana sobre el cable: silbido metálico que vibra."""
+    sec = 2.0
+    t = t_axis(sec)
+    hiss = lowpass_fast(rng.normal(0, 1, len(t)), 5000) * 0.5
+    whine = np.sin(2 * np.pi * (880 + 40 * np.sin(2 * np.pi * 9 * t)) * t) * 0.12
+    return seamless(hiss + whine, 0.3)
+
+
+def sfx_v06():
+    out = {}
+    def noise_burst(sec, cutoff, decay, amp):
+        n = int(sec * SR)
+        return lowpass_fast(rng.normal(0, 1, n), cutoff) * np.exp(-np.arange(n) / SR * decay) * amp
+    out["step"] = seq([(0.0, noise_burst(0.09, 1400, 40, 0.6)), (0.0, kick(0.25, 0.07, 140, 70))])
+    out["roll"] = seq([(0.0, noise_burst(0.45, 900, 6, 0.5)), (0.0, kick(0.4, 0.15, 110, 45)), (0.25, kick(0.25, 0.12, 90, 40))])
+    out["thud"] = reverb(seq([(0.0, kick(0.9, 0.5, 90, 30)), (0.0, noise_burst(0.3, 700, 10, 0.6))]), 0.2)
+    out["zone"] = reverb(seq([(0.0, pad([62, 69, 74], 2.0, 1400, 0.16))] +
+                             [(0.1 + k * 0.16, tone(midi(n), 1.4, 0.16, 2.2)) for k, n in enumerate([74, 81, 86])]), 0.5)
+    hit_t = t_axis(2.0)
+    boom = sum(lowpass_fast(saw(midi(n), hit_t), 600) for n in (26, 33, 38)) * np.exp(-hit_t * 1.4) * 0.22
+    out["cinematic"] = reverb(seq([(0.0, boom), (0.0, kick(1.0, 1.2, 70, 25)), (0.0, noise_burst(1.2, 3000, 3, 0.25))]), 0.45)
+    out["drone_alert"] = seq([(k * 0.14, tone(1500 if k % 2 == 0 else 1900, 0.12, 0.22, 6, (1.0, 0.4))) for k in range(5)])
+    clunk = seq([(0.0, kick(0.6, 0.15, 300, 90)), (0.0, tick(0.5, 0.06, 2500))])
+    out["safe"] = reverb(seq([(0.0, clunk), (0.25, clunk * 0.8), (0.5, clunk * 0.6),
+                              (0.8, tone(midi(74), 1.0, 0.22, 3)), (0.95, tone(midi(81), 1.0, 0.2, 3))]), 0.3)
+    out["zip_start"] = seq([(0.0, tick(0.6, 0.05, 6000)), (0.02, kick(0.4, 0.1, 500, 200))])
+    return out
+
+
+def main_v06():
+    os.makedirs(OUT, exist_ok=True)
+    write("music_finale", music_finale(), 3)
+    write("loop_drone", loop_drone(), 3)
+    write("loop_zipline", loop_zipline(), 3)
+    for name, x in sfx_v06().items():
+        write("sfx_" + name, x, 4)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     write("music_menu", music_menu(), 3)
@@ -330,7 +412,13 @@ def main():
     write("ambient_rain", ambient_rain(), 2)
     for name, x in sfx_all().items():
         write("sfx_" + name, x, 4)
+    main_v06()
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    # --v06: solo los sonidos nuevos de la versión 0.6 (no reescribe los demás).
+    if "--v06" in sys.argv:
+        main_v06()
+    else:
+        main()

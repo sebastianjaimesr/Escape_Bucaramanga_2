@@ -7,6 +7,8 @@ extends CharacterBody3D
 ## El movimiento es relativo a la cámara: camera_yaw lo actualiza la cámara.
 
 signal landed(fall_speed: float)
+## Aterrizó de muy alto; rolled = cayó rodando (no pierde corazón).
+signal hard_landing(fall_speed: float, rolled: bool)
 ## Pidió cambiarse de chaqueta (Q); lo resuelve la misión.
 signal disguise_requested
 
@@ -28,6 +30,11 @@ const JUMP_VELOCITY := 4.8      ## Altura ≈ v²/2g ≈ 1,17 m.
 const JUMP_CUT := 0.5           ## Soltar el salto antes reduce la altura.
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER_TIME := 0.15
+## Caídas: desde ROLL_MIN_SPEED se puede rodar; desde HARD_LAND_SPEED (≈ 4 m)
+## sin rodar te aturdes; desde HURT_SPEED (≈ 9 m) además pierdes un corazón.
+const ROLL_MIN_SPEED := 7.0
+const HARD_LAND_SPEED := 11.0
+const HURT_SPEED := 17.0
 
 # --- Cuerpo ---
 const RADIUS := 0.3
@@ -60,6 +67,11 @@ var cans := 0                    ## Latas para distraer (las pone la misión al 
 var vault_target := Vector3.INF  ## Último borde encontrado por find_vault().
 var vault_count := 0
 var slide_count := 0
+var roll_count := 0
+var hard_land_count := 0
+var jump_count := 0
+## Velocidad de caída del último aterrizaje (la leen los estados).
+var last_landing_speed := 0.0
 
 var body_shape: CapsuleShape3D
 var visual: PrototypeBody
@@ -142,11 +154,18 @@ func _physics_process(delta: float) -> void:
 		last_step_up = _try_step_up(desired, delta)
 	var on_floor := is_on_floor()
 	if on_floor and not _was_on_floor:
+		last_landing_speed = _air_peak_speed
 		landed.emit(_air_peak_speed)
 		if _air_peak_speed > 4.5 and is_inside_tree():
 			Fx.dust(get_parent(), global_position, 0.6 + _air_peak_speed * 0.05)
 			AudioManager.sfx("land", randf_range(0.9, 1.1))
+			EventBus.camera_shake.emit(clampf((_air_peak_speed - 4.5) / 14.0, 0.0, 0.35))
+		if _air_peak_speed >= HARD_LAND_SPEED:
+			var rolling := crouch_held() or (horizontal_speed() > WALK_SPEED + 1.0 and _air_peak_speed < HARD_LAND_SPEED + 2.0)
+			hard_landing.emit(_air_peak_speed, rolling)
 		_air_peak_speed = 0.0
+	elif not on_floor and _was_on_floor:
+		last_landing_speed = 0.0
 	_was_on_floor = on_floor
 	visual.update_visual(self, delta)
 	_update_interaction()
@@ -220,6 +239,10 @@ func can_run() -> bool:
 
 func crouch_pressed() -> bool:
 	return input_enabled and Input.is_action_just_pressed("crouch")
+
+
+func crouch_held() -> bool:
+	return input_enabled and Input.is_action_pressed("crouch")
 
 
 func can_jump() -> bool:
@@ -426,6 +449,8 @@ func throw_can() -> bool:
 func teleport(pos: Vector3, yaw: float = 0.0) -> void:
 	global_position = pos
 	velocity = Vector3.ZERO
+	_air_peak_speed = 0.0
+	last_landing_speed = 0.0
 	facing_yaw = yaw
 	camera_yaw = yaw
 	state_machine.change_state(&"Fall")

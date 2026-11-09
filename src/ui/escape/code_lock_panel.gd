@@ -1,12 +1,24 @@
 class_name CodeLockPanel
 extends ModalPanel
-## Teclado de la caja de grabación de la cámara del túnel. La caja busca el
-## video por hora: hay que escribir HHMM. Con ratón, toque o teclado (dígitos,
-## Retroceso y Enter).
+## Teclado de cuatro dígitos. En el capítulo 1 es la caja de grabación de la
+## cámara del túnel (busca el video por hora, HHMM); en el capítulo 5 es la caja
+## fuerte de El Búho. Los textos los da la misión (Mission.code_panel()).
+## Con ratón, toque o teclado (dígitos, Retroceso y Enter).
 
 const DIGITS := 4
+const DEFAULT_TEXTS := {
+	"kind": "time",
+	"subtitle": "CÁMARA DEL TÚNEL · CAJA DE GRABACIÓN",
+	"title": "Buscar el video por hora",
+	"info": "La caja pide la hora del video que quieres copiar a la USB, en formato de 24 horas (HHMM).",
+	"hint": "Pista: piensa en qué momento pasó el robo.",
+	"ok": "Video encontrado. Copiando a la memoria USB…",
+	"button": "Buscar",
+	"wrong": "No hay ningún robo grabado a las %s:%s.",
+}
 
-var mission: EscapeMission
+var mission: Mission
+var texts: Dictionary = DEFAULT_TEXTS
 var code := ""
 var _slots: Array[Label] = []
 var _display: PanelContainer
@@ -15,16 +27,18 @@ var _keys: Array[Button] = []
 var _locked_out := false
 
 
-func _init(w: PrototypeWorld, m: EscapeMission) -> void:
+func _init(w: PrototypeWorld, m: Mission) -> void:
 	super(w)
 	mission = m
+	if m != null and not m.code_panel().is_empty():
+		texts = DEFAULT_TEXTS.merged(m.code_panel(), true)
 
 
 func build() -> void:
-	subtitle_label.text = "CÁMARA DEL TÚNEL · CAJA DE GRABACIÓN"
-	title_label.text = "Buscar el video por hora"
+	subtitle_label.text = texts["subtitle"]
+	title_label.text = texts["title"]
 	card.custom_minimum_size = Vector2(440, 0)
-	var info := UiStyle.label("La caja pide la hora del video que quieres copiar a la USB, en formato de 24 horas (HHMM).", 16, UiStyle.TEXT_DIM)
+	var info := UiStyle.label(texts["info"], 16, UiStyle.TEXT_DIM)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.custom_minimum_size = Vector2(380, 0)
 	body.add_child(info)
@@ -36,7 +50,7 @@ func build() -> void:
 	slots.add_theme_constant_override("separation", 10)
 	_display.add_child(slots)
 	for i in DIGITS:
-		if i == 2:
+		if i == 2 and texts["kind"] == "time":
 			slots.add_child(_digit_label(":", UiStyle.TEXT_DIM))
 		var l := _digit_label("_", UiStyle.OK)
 		_slots.append(l)
@@ -51,7 +65,7 @@ func build() -> void:
 	grid.add_theme_constant_override("v_separation", 10)
 	body.add_child(grid)
 	for k: String in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Borrar", "0", "Buscar"]:
-		var b := UiStyle.button(k, 120, "primary" if k == "Buscar" else "ghost")
+		var b := UiStyle.button(texts["button"] if k == "Buscar" else k, 120, "primary" if k == "Buscar" else "ghost")
 		b.custom_minimum_size = Vector2(120, 58)
 		b.add_theme_font_size_override("font_size", 22 if k.length() == 1 else 17)
 		b.pressed.connect(_press.bind(k))
@@ -69,7 +83,7 @@ func _digit_label(t: String, c: Color) -> Label:
 func refresh() -> void:
 	code = ""
 	_locked_out = false
-	_message.text = "Pista: piensa en qué momento pasó el robo."
+	_message.text = texts["hint"]
 	_message.add_theme_color_override("font_color", UiStyle.TEXT_DIM)
 	_update_slots(UiStyle.OK)
 
@@ -121,7 +135,7 @@ func _update_slots(c: Color) -> void:
 
 func _submit() -> void:
 	if code.length() < DIGITS:
-		_message.text = "Faltan dígitos: la hora tiene cuatro (HHMM)."
+		_message.text = "Faltan dígitos: la hora tiene cuatro (HHMM)." if texts["kind"] == "time" else "Faltan dígitos: la clave tiene cuatro."
 		_message.add_theme_color_override("font_color", UiStyle.WARN)
 		AudioManager.sfx("error")
 		UiStyle.shake(_display)
@@ -129,9 +143,9 @@ func _submit() -> void:
 	if mission.try_code(code):
 		_locked_out = true
 		_update_slots(UiStyle.OK)
-		_message.text = "Video encontrado. Copiando a la memoria USB…"
+		_message.text = texts["ok"]
 		_message.add_theme_color_override("font_color", UiStyle.OK)
-		AudioManager.sfx("unlock")
+		AudioManager.sfx("unlock" if texts["kind"] == "time" else "safe")
 		flash(UiStyle.OK)
 		var tw := create_tween()
 		tw.tween_interval(1.3)
@@ -139,10 +153,12 @@ func _submit() -> void:
 		return
 	var hh := int(code.substr(0, 2))
 	var mm := int(code.substr(2, 2))
-	if hh > 23 or mm > 59:
+	if texts["kind"] != "time":
+		_message.text = str(texts["wrong"]) % code if "%s" in str(texts["wrong"]) else str(texts["wrong"])
+	elif hh > 23 or mm > 59:
 		_message.text = "%s:%s no es una hora válida." % [code.substr(0, 2), code.substr(2, 2)]
 	else:
-		_message.text = "No hay ningún robo grabado a las %s:%s." % [code.substr(0, 2), code.substr(2, 2)]
+		_message.text = str(texts["wrong"]) % [code.substr(0, 2), code.substr(2, 2)]
 	_message.add_theme_color_override("font_color", UiStyle.DANGER)
 	_update_slots(UiStyle.DANGER)
 	AudioManager.sfx("error")

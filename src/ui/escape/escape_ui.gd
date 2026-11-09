@@ -26,7 +26,7 @@ func _ready() -> void:
 	# Los acertijos del capítulo 1 solo existen en EscapeMission (en los demás
 	# capítulos los paneles se crean, pero nunca se piden).
 	var escape := mission as EscapeMission
-	code_lock = CodeLockPanel.new(world, escape)
+	code_lock = CodeLockPanel.new(world, mission)
 	pattern_lock = PatternLockPanel.new(world, escape)
 	deduction = DeductionPanel.new(world, escape)
 	inventory.toggle_action = "inventory"
@@ -42,7 +42,9 @@ func _ready() -> void:
 func open_panel(kind: String) -> void:
 	if mission.finished or any_open() or world.pause_menu.visible:
 		return
-	if kind in ["code", "phone", "deduction"] and not mission is EscapeMission:
+	if kind in ["phone", "deduction"] and not mission is EscapeMission:
+		return
+	if kind == "code" and not mission is EscapeMission and mission.code_panel().is_empty():
 		return
 	match kind:
 		"code":

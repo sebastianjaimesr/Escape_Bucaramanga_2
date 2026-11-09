@@ -10,6 +10,9 @@ var mode := "explorador"
 var continue_saved := false
 ## Las pruebas lo apagan para no escribir la partida del jugador.
 var save_enabled := true
+## Cinemáticas cortas al empezar un capítulo y en los momentos clave (las
+## pruebas automáticas las apagan para no esperar).
+var cinematics_enabled := true
 
 
 func new_game(mode_id: String, chapter_id: String = Chapters.FIRST) -> void:

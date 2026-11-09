@@ -20,6 +20,15 @@ func _init() -> void:
 	})
 
 
+var _step_cycle := 0
+
+
 func update_visual(p: PlayerController, delta: float) -> void:
 	rotation.y = p.facing_yaw
 	animate(p.horizontal_speed(), PlayerController.RUN_SPEED, p.is_on_floor(), p.crouching, p.is_running(), delta)
+	# Un paso cada medio ciclo de la zancada. Agachado no suena (sigilo).
+	var cycle := int(floor(_phase / PI))
+	if cycle != _step_cycle:
+		_step_cycle = cycle
+		if p.is_on_floor() and p.horizontal_speed() > 0.8 and not p.crouching and p.is_inside_tree():
+			AudioManager.step(p.is_running())

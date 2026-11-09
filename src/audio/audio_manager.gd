@@ -14,10 +14,14 @@ const TRACKS := {
 	"chase": "res://assets/audio/music_chase.ogg",
 	"ambient": "res://assets/audio/ambient_city.ogg",
 	"rain": "res://assets/audio/ambient_rain.ogg",
+	"finale": "res://assets/audio/music_finale.ogg",
+	"drone": "res://assets/audio/loop_drone.ogg",
+	"zipline": "res://assets/audio/loop_zipline.ogg",
 }
 const SFX := ["click", "hover", "key", "pickup", "discover", "unlock", "error", "hint", "open",
 		"alert", "caught", "win", "lose", "jump", "land", "slide", "throw", "can", "coin", "alarm",
-		"levelup", "checkpoint", "achievement", "camera", "buy"]
+		"levelup", "checkpoint", "achievement", "camera", "buy",
+		"step", "roll", "thud", "zone", "cinematic", "drone_alert", "safe", "zip_start"]
 const FADE := 1.6
 const SILENT_DB := -60.0
 const SFX_VOICES := 6
@@ -34,6 +38,8 @@ var _streams: Dictionary = {}
 var _chase_target := 0.0
 var _chase_level := 0.0
 var _last_hover := 0
+## Los pasos van por un canal propio para no quitarle voces a los efectos.
+var _steps: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -53,6 +59,7 @@ func _ready() -> void:
 	_rain = _player("ambient")
 	for i in SFX_VOICES:
 		_voices.append(_player("sfx"))
+	_steps = _player("sfx")
 	apply_volumes()
 	Settings.changed.connect(func(section: String, _k: String, _v: Variant) -> void:
 		if section == "audio":
@@ -165,6 +172,30 @@ func set_rain(on: bool) -> void:
 		var tw := create_tween()
 		tw.tween_property(_rain, "volume_db", SILENT_DB, FADE * 0.5)
 		tw.tween_callback(_rain.stop)
+
+
+## Un paso de Sebastián (más suave al caminar que al correr).
+func step(running: bool) -> void:
+	var s := stream("res://assets/audio/sfx_step.ogg", false)
+	if s == null:
+		return
+	_steps.stream = s
+	_steps.pitch_scale = randf_range(0.88, 1.12) * (1.08 if running else 0.95)
+	_steps.volume_db = -9.0 if running else -15.0
+	_steps.play()
+
+
+## Reproductor 3D en bucle pegado a un nodo (el zumbido de un dron).
+func loop_3d(parent: Node3D, track: String, volume_db: float = 0.0) -> AudioStreamPlayer3D:
+	var p := AudioStreamPlayer3D.new()
+	p.bus = BUSES["sfx"]
+	p.stream = stream(TRACKS[track], true)
+	p.volume_db = volume_db
+	p.unit_size = 6.0
+	p.max_distance = 40.0
+	p.autoplay = true
+	parent.add_child(p)
+	return p
 
 
 func sfx(sound: String, pitch: float = 1.0) -> void:

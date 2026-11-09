@@ -16,5 +16,13 @@ func physics_update(delta: float) -> StringName:
 	if climb != &"":
 		return climb
 	if player.is_on_floor():
+		var impact := player.last_landing_speed
+		if impact >= PlayerController.ROLL_MIN_SPEED and (player.crouch_held() \
+				or (player.horizontal_speed() > PlayerController.WALK_SPEED + 1.0 and impact < PlayerController.HARD_LAND_SPEED + 2.0)):
+			return &"Roll"
+		if impact >= PlayerController.HARD_LAND_SPEED:
+			return &"HardLand"
+		if impact > 4.5:
+			player.visual.land_impact(clampf(impact / PlayerController.HARD_LAND_SPEED, 0.2, 0.8))
 		return &"Crouch" if player.crouching else locomotion_state()
 	return &""

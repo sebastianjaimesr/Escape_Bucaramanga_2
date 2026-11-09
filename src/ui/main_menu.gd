@@ -64,6 +64,7 @@ func _ready() -> void:
 	profile.closed.connect(func() -> void: _show_page("home"))
 	_pages["profile"] = profile
 	_pages["howto"] = _build_howto()
+	_pages["credits"] = _build_credits()
 	_settings = SettingsPanel.new()
 	_settings.closed.connect(func() -> void: _show_page("home"))
 	_pages["settings"] = _settings
@@ -106,9 +107,9 @@ func _build_home() -> VBoxContainer:
 	t2.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
 	t2.add_theme_constant_override("shadow_offset_y", 3)
 	col.add_child(t2)
-	var sub := UiStyle.label("Una aventura urbana en cuatro capítulos", 24, UiStyle.ACCENT, 500)
+	var sub := UiStyle.label("Una aventura urbana en cinco capítulos", 24, UiStyle.ACCENT, 500)
 	col.add_child(sub)
-	var intro := UiStyle.label("Todo empezó a las 17:42, cuando la policía confundió a Sebastián con un ladrón. Aclararlo fue solo el comienzo: detrás de los robos del barrio hay una red. Investiga, sigue sospechosos, entra de noche a una bodega y escapa bajo la lluvia, con Buitrago, Diaz y Gordo de tu lado.", 18, UiStyle.TEXT_DIM)
+	var intro := UiStyle.label("Todo empezó a las 17:42, cuando la policía confundió a Sebastián con un ladrón. Aclararlo fue solo el comienzo: detrás de los robos del barrio hay una red. Investiga, sigue sospechosos, entra de noche a una bodega, escapa bajo la lluvia y cruza las terrazas de Cabecera hasta el Puente de la Novena antes del amanecer.", 18, UiStyle.TEXT_DIM)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.custom_minimum_size = Vector2(300, 0)
 	col.add_child(intro)
@@ -138,6 +139,15 @@ func _build_home() -> VBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	buttons.add_child(row)
+	var stats := UiStyle.button("Estadísticas", 130)
+	stats.pressed.connect(_open_profile.bind("stats"))
+	row.add_child(stats)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 10)
+	buttons.add_child(row2)
+	var credits := UiStyle.button("Créditos", 110)
+	credits.pressed.connect(func() -> void: _show_page("credits"))
+	row2.add_child(credits)
 	var howto := UiStyle.button("Cómo se juega", 165)
 	howto.pressed.connect(func() -> void: _show_page("howto"))
 	row.add_child(howto)
@@ -149,7 +159,7 @@ func _build_home() -> VBoxContainer:
 		settings.custom_minimum_size.x = 130
 		var quit := UiStyle.button("Salir", 70)
 		quit.pressed.connect(func() -> void: get_tree().quit())
-		row.add_child(quit)
+		row2.add_child(quit)
 	var chips := HFlowContainer.new()
 	chips.add_theme_constant_override("h_separation", 8)
 	chips.add_theme_constant_override("v_separation", 8)
@@ -302,12 +312,14 @@ func _build_howto() -> VBoxContainer:
 	col.add_child(UiStyle.overline("Instrucciones"))
 	col.add_child(UiStyle.title("Cómo se juega", 40))
 	var sections := [
-		["La campaña", "Cuatro capítulos que se desbloquean en orden: aclarar el malentendido, recuperar la plata robada de la natillera, entrar de noche a la bodega de la red y escapar bajo la lluvia. Cada capítulo tiene sus objetivos arriba a la izquierda."],
+		["La campaña", "Cinco capítulos que se desbloquean en orden: aclarar el malentendido, recuperar la plata robada de la natillera, entrar de noche a la bodega de la red, escapar bajo la lluvia y, en Cabecera, la gran huida hasta el Puente de la Novena. Cada capítulo tiene sus objetivos arriba a la izquierda."],
 		["Pruebas y acertijos", "Los brillos dorados son pruebas u objetos: examínalos en el inventario, porque sus detalles abren cerraduras y señalan culpables."],
 		["La policía y la búsqueda", "Los cuadritos de arriba son el nivel de búsqueda: Tranquilo, Sospecha, Búsqueda, Persecución y Cerco. Sube si te ven o si una cámara te graba, y baja cuando nadie te ve (el doble de rápido escondido en un matorral, agachado). Desde Persecución llegan refuerzos."],
 		["Oportunidades y puntos de control", "Desde el capítulo 2 tienes tres corazones: cada vez que te atrapan pierdes uno y vuelves al último punto de control. Sin corazones, se reintenta el capítulo."],
 		["Moverse por la ciudad", "Salta contra un muro bajo para treparlo. Agáchate mientras corres para deslizarte. Lanza una lata (G) para que los guardias vayan a mirar el ruido. Con la chaqueta de la tienda o el impermeable, Q te disfraza."],
-		["Progreso", "Cada objetivo, logro y postal da XP. Al subir de nivel ganas un punto de habilidad. Con el dinero de los capítulos compras objetos en la tienda. Hay 10 postales escondidas con datos de Bucaramanga."],
+		["Parkour en las terrazas", "Los saltos largos entre terrazas solo salen corriendo. Si caes de alto, pulsa Agacharse al aterrizar para rodar: sin rodar te aturdes, y desde muy alto pierdes un corazón. En las tirolesas, Interactuar para colgarte y Saltar para soltarte."],
+		["Drones", "Los drones alumbran un círculo en el suelo. Si te quedas en la luz te descubren y te siguen; corre fuera del círculo, métete bajo un toldo o agáchate en una jardinera."],
+		["Progreso", "Cada objetivo, logro y postal da XP. Al subir de nivel ganas un punto de habilidad. Con el dinero de los capítulos compras objetos en la tienda. Hay 15 postales escondidas con datos de Bucaramanga. En Perfil → Estadísticas ves tus récords."],
 		["Pistas", "Si te atascas, pide una pista (H o el bombillo). Cada objetivo tiene tres: la última da la solución. No restan tiempo, pero cuentan en el resultado."],
 		["Teclado y ratón", "WASD mover · Shift correr · Espacio saltar o trepar · C agacharse o deslizarse · E interactuar · G lanzar lata · Q disfraz · Tab inventario · H pista · Esc pausa. Las teclas se pueden cambiar en Configuración."],
 		["Pantalla táctil", "Mitad izquierda: mover. Mitad derecha: girar la cámara. Botones Usar, Saltar, Agachar, Correr, Lata y Disfraz. Arriba: inventario, pistas, sonido y pausa."],
@@ -324,6 +336,41 @@ func _build_howto() -> VBoxContainer:
 	for s: Array in sections:
 		var head := UiStyle.label(s[0], 18, UiStyle.ACCENT, 600)
 		list.add_child(head)
+		var body := UiStyle.label(s[1], 16, UiStyle.TEXT)
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.custom_minimum_size = Vector2(300, 0)
+		list.add_child(body)
+	var back := UiStyle.button("Volver", 160)
+	back.pressed.connect(func() -> void: _show_page("home"))
+	col.add_child(back)
+	return col
+
+
+func _build_credits() -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	col.add_child(UiStyle.overline("Créditos"))
+	col.add_child(UiStyle.title("Escape de Bucaramanga", 36))
+	var sections := [
+		["Idea, historia y dirección", "sebastianjaimesr (GitHub)"],
+		["Personajes", "Sebastián, Buitrago, Diaz y Gordo. Lucía Rangel, Doña Rosa, A. Pabón y «El Búho» son personajes ficticios."],
+		["Motor", "Godot Engine 4.7 (licencia MIT) con física Jolt."],
+		["Arte", "Toda la geometría, las texturas y los íconos se generan con código dentro del juego."],
+		["Música y sonido", "Sintetizados desde cero con tools/generate_audio.py (sin muestras de terceros)."],
+		["Tipografías", "Cinzel y Outfit, bajo SIL Open Font License."],
+		["Desarrollo asistido", "Programación y diseño con ayuda de Claude (Anthropic)."],
+		["Aviso", "Lugares inspirados en Bucaramanga, no reproducciones exactas. La policía, los vigilantes, los drones y los nombres comerciales son ficticios y nadie sale herido."],
+	]
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 360)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	scroll.add_child(list)
+	for s: Array in sections:
+		list.add_child(UiStyle.label(s[0], 17, UiStyle.ACCENT, 600))
 		var body := UiStyle.label(s[1], 16, UiStyle.TEXT)
 		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body.custom_minimum_size = Vector2(300, 0)

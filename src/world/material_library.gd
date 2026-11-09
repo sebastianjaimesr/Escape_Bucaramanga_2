@@ -202,6 +202,50 @@ static func get_material(id: String) -> StandardMaterial3D:
 			m = _emissive(Color(0.95, 0.92, 0.8), 0.5)
 		"clue":
 			m = _emissive(Color(0.4, 0.9, 1.0), 1.6)
+		# --- Cabecera y Parque de las Palmas (capítulo 5) ---
+		"water":
+			m = _flat(Color(0.12, 0.32, 0.42), 0.04)
+			m.metallic = 0.2
+			m.metallic_specular = 1.0
+			m.emission_enabled = true
+			m.emission = Color(0.1, 0.35, 0.45)
+			m.emission_energy_multiplier = 0.25
+		"palm_trunk":
+			m = _surface(Color(0.5, 0.42, 0.32), 0.95, 0.35, 4.0)
+		"palm_frond":
+			m = _flat(Color(0.2, 0.42, 0.14), 0.8)
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		"palm_frond_dark":
+			m = _flat(Color(0.13, 0.3, 0.1), 0.85)
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		"tower_glass":
+			m = _flat(Color(0.16, 0.3, 0.38), 0.08)
+			m.metallic = 0.65
+			m.metallic_specular = 1.0
+		"tower_glass_lit":
+			m = _emissive(Color(0.95, 0.78, 0.5), 0.8)
+		"concrete_light":
+			m = _surface(Color(0.8, 0.79, 0.75), 0.85, 0.2, 1.2)
+		"mall_sign":
+			m = _emissive(Color(1.0, 0.45, 0.2), 3.0)
+		"zip_cable":
+			m = _flat(Color(0.12, 0.12, 0.13), 0.35)
+			m.metallic = 0.8
+		"drone_light":
+			m = _emissive(Color(0.75, 0.9, 1.0), 0.9)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color.a = 0.1
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		"drone_light_alert":
+			m = _emissive(Color(1.0, 0.25, 0.2), 1.0)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color.a = 0.14
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		"van_white":
+			m = _flat(Color(0.92, 0.92, 0.9), 0.3)
+			m.metallic = 0.4
 		_:
 			if id.begins_with("facade_"):
 				var i := int(id.trim_prefix("facade_")) % FACADE_COLORS.size()

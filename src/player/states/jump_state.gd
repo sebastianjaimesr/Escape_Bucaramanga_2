@@ -14,6 +14,8 @@ func enter(_data: Dictionary) -> void:
 		player.set_crouching(false)
 	player.consume_jump()
 	player.velocity.y = PlayerController.JUMP_VELOCITY
+	player.jump_count += 1
+	AudioManager.sfx("jump", randf_range(0.95, 1.08))
 	_cut = false
 
 

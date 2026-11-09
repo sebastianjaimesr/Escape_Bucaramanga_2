@@ -148,6 +148,16 @@ func _on_lost(reason: String) -> void:
 		_title.text = "Te atraparon demasiadas veces"
 		_body.text = "Esta vez no se pudo. Lograste %s objetivos. Muévete agachado, usa las latas (%s) y escóndete en los matorrales para que baje la búsqueda." % [
 				mission.progress_text(), InputConfig.key_name("throw")]
+	elif reason == "caida":
+		_over.text = "SIN OPORTUNIDADES"
+		_title.text = "Demasiados golpes"
+		_body.text = "Las caídas altas cuestan un corazón. Pulsa %s justo al aterrizar para rodar y no hacerte daño. Lograste %s objetivos." % [
+				InputConfig.key_name("crouch"), mission.progress_text()]
+	elif reason == "amanecer":
+		_over.text = "SALIÓ EL SOL"
+		_title.text = "Lucía tuvo que irse"
+		_body.text = "Amaneció antes de que llegaras al Puente de la Novena. Lograste %s objetivos. Desde el mirador, ve al sur por el andén del parque y evita el cruce vigilado." % [
+				mission.progress_text()]
 	else:
 		_over.text = "CONTRARRELOJ"
 		_title.text = "Se acabó el tiempo"

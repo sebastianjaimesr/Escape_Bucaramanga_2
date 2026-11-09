@@ -60,7 +60,7 @@ const LIST := [
 	{
 		"id": "persecucion", "number": 4, "title": "Persecución urbana",
 		"win_title": "¡A salvo bajo la lluvia!",
-		"outro": "En el refugio, los cuatro amigos leen la última página del libro: «Todo se le reporta a El Búho». ¿Quién es El Búho? Continuará…",
+		"outro": "En el refugio, los cuatro amigos leen la última página del libro: «Todo se le reporta a El Búho». ¿Quién es El Búho? Una periodista quiere saberlo también…",
 		"place": "Toda la manzana, bajo la lluvia", "time": "noche", "rain": true,
 		"xp": 1200, "money": 300, "lives": 3,
 		"summary": "Alguien de la red avisó a la policía. Con el libro de cuentas en la mochila, cruza la ciudad bajo la lluvia, pierde a las patrullas y llega al refugio.",
@@ -72,10 +72,25 @@ const LIST := [
 			["¡Qué aguacero tan verraco!", "Yo no he visto nada, yo no he visto nada."],
 		],
 	},
+	{
+		"id": "gran_huida", "number": 5, "title": "La gran huida",
+		"win_title": "¡En vivo desde el Puente de la Novena!",
+		"outro": "Al amanecer, Lucía Rangel transmitió en vivo: El Búho era Aurelio Pabón, dueño de Inversiones La Meseta. Con el contrato, el libro y las fotos, el caso quedó en manos de la Fiscalía. Sebastián, por fin, ya no es sospechoso de nada.",
+		"place": "Cabecera · Parque de las Palmas", "map": "cabecera", "time": "madrugada", "rain": false,
+		"xp": 1500, "money": 400, "lives": 3,
+		"summary": "Una periodista puede contar toda la verdad al amanecer. Sube a las terrazas de Cabecera, saca el contrato de la oficina de El Búho y huye hasta el Puente de la Novena antes de que salga el sol.",
+		"tags": ["Parkour", "Drones", "Huida final"],
+		"pedestrians": [
+			["¿Usted qué hace despierto a esta hora, mijo?", "Dicen que por las terrazas se cruza toda la cuadra."],
+			["Esos drones nuevos alumbran todo el parque.", "Debajo de un toldo no lo ven desde arriba."],
+			["En la placa del monumento está el año en que se fundó la ciudad.", "Yo madrugo a trotar por el parque, ¡qué fresquito!"],
+			["Si cae de muy alto, ruede al caer, como los muchachos del parkour.", "Por la tirolesa del mirador se baja volando."],
+		],
+	},
 ]
 
 ## Lo que se ve en la selección de capítulos después del último.
-const NEXT_TEASER := "Capítulo 5 · «El informante»: llega en la próxima actualización."
+const NEXT_TEASER := "Fin de la primera temporada. Repite capítulos para mejorar tus rangos y busca las 15 postales."
 
 ## Buitrago, Diaz y Gordo: [nombre, apariencia, posición relativa al punto de encuentro].
 const FRIENDS := [
@@ -136,6 +151,10 @@ const ACHIEVEMENTS := {
 	"escapista": {"name": "Escurridizo", "text": "Baja una búsqueda de nivel 3 o más hasta cero.", "xp": 150},
 	"nivel_5": {"name": "Experto urbano", "text": "Llega al nivel 5.", "xp": 0},
 	"cliente": {"name": "Cliente de Doña Rosa", "text": "Compra algo en la tienda.", "xp": 50},
+	"gran_huida": {"name": "La gran huida", "text": "Termina el capítulo 5.", "xp": 200},
+	"rey_terrazas": {"name": "Rey de las terrazas", "text": "Cruza de la escalera a la oficina de El Búho en menos de 75 s sin bajar a la calle.", "xp": 200},
+	"acrobata": {"name": "Acróbata", "text": "Rueda 10 veces al caer de alto (Agacharse al aterrizar).", "xp": 100},
+	"postales_15": {"name": "Bumangués de corazón", "text": "Encuentra las 15 postales.", "xp": 400},
 }
 
 ## Postales coleccionables: 50 XP y $20 cada una; cada 5, un punto de habilidad.
@@ -160,6 +179,17 @@ const COLLECTIBLES := [
 		"fact": "La Mesa de los Santos, cerca de la ciudad, es famosa por su café."},
 	{"id": "agua", "name": "El Parque del Agua", "position": Vector3(-6.6, 0.15, 57.0),
 		"fact": "El Parque del Agua es uno de los parques más visitados de la ciudad."},
+	# --- Cabecera (capítulo 5) ---
+	{"id": "capital", "name": "Capital de Santander", "map": "cabecera", "position": Vector3(-23.0, 2.6, -25.0),
+		"fact": "Bucaramanga es la capital del departamento de Santander."},
+	{"id": "garcia_rovira", "name": "Parque García Rovira", "map": "cabecera", "position": Vector3(-58.0, 0.15, -4.0),
+		"fact": "En el Parque García Rovira, en el centro, empezó la ciudad."},
+	{"id": "santisimo", "name": "El Santísimo", "map": "cabecera", "position": Vector3(24.0, 7.82, 9.5),
+		"fact": "En el Cerro del Santísimo, en Floridablanca, una estatua gigante mira sobre toda el área metropolitana."},
+	{"id": "casa_bolivar", "name": "Casa de Bolívar", "map": "cabecera", "position": Vector3(-44.0, 0.15, 66.0),
+		"fact": "En el centro está la Casa de Bolívar, una casona colonial donde se alojó Simón Bolívar en 1828; hoy es museo."},
+	{"id": "estadio", "name": "El Alfonso López", "map": "cabecera", "position": Vector3(30.5, 0.15, -19.5),
+		"fact": "El estadio Alfonso López es la casa del Atlético Bucaramanga."},
 ]
 
 
@@ -209,4 +239,6 @@ static func create_mission(id: String, world: PrototypeWorld) -> Mission:
 			return CallejonMission.new(world)
 		"persecucion":
 			return PersecucionMission.new(world)
+		"gran_huida":
+			return GranHuidaMission.new(world)
 	return EscapeMission.new(world)

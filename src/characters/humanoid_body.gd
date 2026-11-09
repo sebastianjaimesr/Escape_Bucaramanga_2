@@ -42,6 +42,17 @@ var _stride := 0.0
 var _crouch := 0.0
 var _lean := 0.0
 var _materials: Dictionary = {}
+## Postura especial: "" normal, "hang" colgado (tirolesa), "roll" rodando.
+var pose := "":
+	set(value):
+		if value == pose:
+			return
+		pose = value
+		_pose_t = 0.0
+		if _hips != null:
+			_hips.rotation.x = 0.0
+var _pose_t := 0.0
+var _impact := 0.0
 
 
 func _init(options: Dictionary = {}) -> void:
@@ -143,6 +154,46 @@ func animate(speed: float, run_speed: float, on_floor: bool, crouching: bool, ru
 	_lean = lerpf(_lean, target_lean + 0.35 * _crouch, clampf(delta * 8.0, 0.0, 1.0))
 	_torso.rotation.x = -_lean
 	_head.rotation.x = _lean * 0.6
+	# Al aterrizar las rodillas absorben el golpe (se recupera en ~0,3 s).
+	if _impact > 0.0:
+		_hips.position.y -= 0.2 * _impact
+		for i in 2:
+			_thighs[i].rotation.x += 0.7 * _impact
+			_knees[i].rotation.x += -1.0 * _impact
+		_torso.rotation.x -= 0.25 * _impact
+		_impact = move_toward(_impact, 0.0, delta * 3.2)
+	_apply_pose(delta)
+
+
+## Amortigua un aterrizaje (0..1).
+func land_impact(amount: float) -> void:
+	_impact = maxf(_impact, clampf(amount, 0.0, 1.0))
+
+
+func _apply_pose(delta: float) -> void:
+	_pose_t += delta
+	match pose:
+		"hang":
+			# Colgado de la roldana: brazos arriba y piernas recogidas que se balancean.
+			var sway := sin(_pose_t * 3.0) * 0.12
+			for i in 2:
+				_arms[i].rotation.x = 2.95
+				_elbows[i].rotation.x = 0.15
+				_thighs[i].rotation.x = 0.55 + sway
+				_knees[i].rotation.x = -0.7
+			_torso.rotation.x = 0.05
+			_hips.position.y = 0.92
+		"roll":
+			# Una vuelta completa hacia adelante, hecho bolita.
+			var k := clampf(_pose_t / RollState.DURATION, 0.0, 1.0)
+			_hips.position.y = 0.5
+			_hips.rotation.x = -TAU * ease(k, 0.8)
+			for i in 2:
+				_thighs[i].rotation.x = 1.9
+				_knees[i].rotation.x = -2.2
+				_arms[i].rotation.x = 1.2
+				_elbows[i].rotation.x = 1.0
+			_head.rotation.x = 0.5
 
 
 ## Gira la cabeza (para mirar alrededor al buscar).

@@ -25,6 +25,10 @@ var camera: Camera3D
 var arm: SpringArm3D
 
 var _pivot_height := STAND_PIVOT_HEIGHT
+## Sacudida (0..1): sube con los golpes y baja sola. Se aplica al cuadrado,
+## así los golpes chicos casi no se notan y los grandes sí.
+var trauma := 0.0
+var _shake_t := 0.0
 
 
 func _ready() -> void:
@@ -47,6 +51,13 @@ func _ready() -> void:
 	camera.fov = float(Settings.get_value("camera", "fov"))
 	arm.add_child(camera)
 	Settings.changed.connect(_on_setting_changed)
+	EventBus.camera_shake.connect(add_trauma)
+
+
+func add_trauma(amount: float) -> void:
+	if Fx.reduced():
+		amount *= 0.3
+	trauma = clampf(trauma + amount, 0.0, 1.0)
 
 
 func set_target(p: PlayerController) -> void:
@@ -97,6 +108,19 @@ func _physics_process(delta: float) -> void:
 	var base_fov := float(Settings.get_value("camera", "fov"))
 	var fov_goal := base_fov + (RUN_FOV_BONUS if target.is_running() else 0.0)
 	camera.fov = lerpf(camera.fov, fov_goal, clampf(delta * 5.0, 0.0, 1.0))
+	_update_shake(delta)
+
+
+func _update_shake(delta: float) -> void:
+	if trauma <= 0.0:
+		camera.h_offset = 0.0
+		camera.v_offset = 0.0
+		return
+	_shake_t += delta * 30.0
+	var k := trauma * trauma
+	camera.h_offset = (sin(_shake_t * 1.13) + sin(_shake_t * 2.71) * 0.5) * 0.12 * k
+	camera.v_offset = (cos(_shake_t * 1.37) + sin(_shake_t * 3.07) * 0.5) * 0.12 * k
+	trauma = maxf(0.0, trauma - delta * 1.6)
 
 
 func _apply_rotation() -> void:

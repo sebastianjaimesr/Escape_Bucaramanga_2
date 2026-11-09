@@ -19,6 +19,8 @@ const TUNNEL_CLEARANCE := 1.3
 
 var root: Node3D
 var points: Dictionary = {}       ## Puntos con nombre (aparición, pruebas).
+## Mitad del lado del área jugable (los distritos más grandes lo cambian).
+var half_size := HALF_SIZE
 var _rng := RandomNumberGenerator.new()
 var _windows: Array[Transform3D] = []
 var _lit_windows: Array[Transform3D] = []
@@ -46,6 +48,7 @@ func build() -> Dictionary:
 	_build_windows()
 	_flush_batches()
 	_build_bounds()
+	points["map_half"] = half_size
 	points["spawn"] = Vector3(-8.0, CURB_HEIGHT, 9.0)
 	points["spawn_yaw"] = -PI * 0.25
 	return points
@@ -120,9 +123,10 @@ func _build_buildings(q: Vector2) -> void:
 		pos += w
 
 
-func _building(center: Vector3, footprint: Vector3, floors: int, facing: Vector3, id: String) -> void:
+## height > 0 fija la altura exacta (las terrazas del parkour de Cabecera).
+func _building(center: Vector3, footprint: Vector3, floors: int, facing: Vector3, id: String, height: float = 0.0) -> void:
 	var floor_h := 3.0
-	var h := 3.6 + (floors - 1) * floor_h
+	var h := 3.6 + (floors - 1) * floor_h if height <= 0.0 else height
 	var base := CURB_HEIGHT
 	# Uno de cada cuatro edificios es de ladrillo a la vista, muy común en Bucaramanga.
 	var brick := _rng.randf() < 0.25
@@ -320,7 +324,8 @@ func _build_street_props() -> void:
 		_tree(Vector3(p.x, g, p.y))
 
 
-func _lamp(pos: Vector3) -> void:
+## dir: hacia dónde apunta el brazo (por defecto, hacia la calle más cercana).
+func _lamp(pos: Vector3, dir: Vector3 = Vector3.ZERO) -> void:
 	if not points.has("lamps"):
 		points["lamps"] = []
 	add_cylinder(0.07, 5.5, pos + Vector3(0, 2.75, 0), "metal", true)
@@ -329,6 +334,8 @@ func _lamp(pos: Vector3) -> void:
 	var to_street := Vector3(-signf(pos.x), 0, 0) if absf(pos.x) < absf(pos.z) else Vector3(0, 0, -signf(pos.z))
 	if absf(pos.x) < 0.01 or absf(pos.z) < 0.01:
 		to_street = Vector3.FORWARD
+	if dir != Vector3.ZERO:
+		to_street = dir.normalized()
 	var arm := add_box(Vector3(0.06, 0.06, 1.2), Vector3.ZERO, "metal", false)
 	arm.basis = Basis.looking_at(to_street, Vector3.UP)
 	arm.position = pos + Vector3(0, 5.45, 0) + to_street * 0.55
@@ -361,7 +368,7 @@ func _bench(pos: Vector3) -> void:
 
 
 func _build_bounds() -> void:
-	var s := HALF_SIZE
+	var s := half_size
 	for spec: Array in [
 		[Vector3(s * 2, 12, 1), Vector3(0, 6, -s - 0.5)],
 		[Vector3(s * 2, 12, 1), Vector3(0, 6, s + 0.5)],

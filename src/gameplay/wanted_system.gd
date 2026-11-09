@@ -120,10 +120,11 @@ func _update_reinforcements(delta: float) -> void:
 	if level >= 3 and reinforcements.size() < MAX_REINFORCEMENTS and _reinforce_timer <= 0.0:
 		_reinforce_timer = REINFORCEMENT_COOLDOWN
 		var p := mission.world.player.global_position
-		var entries := [Vector3(0.0, 0.15, -56.0), Vector3(56.0, 0.15, 0.0), Vector3(0.0, 0.15, 56.0), Vector3(-56.0, 0.15, 0.0)]
+		var entries: Array = mission.points.get("reinforcement_entries",
+				[Vector3(0.0, 0.15, -56.0), Vector3(56.0, 0.15, 0.0), Vector3(0.0, 0.15, 56.0), Vector3(-56.0, 0.15, 0.0)]).duplicate()
 		entries.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.distance_to(p) > b.distance_to(p))
 		var start: Vector3 = entries[1]
-		var o := mission.spawn_officer(PackedVector3Array([start, Vector3(start.x * 0.4, 0.15, start.z * 0.4)]))
+		var o := mission.spawn_officer(PackedVector3Array([start, start.lerp(p, 0.5)]))
 		o.add_to_group("reinforcement")
 		o.last_known = p
 		o.alert = 0.6
