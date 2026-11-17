@@ -1,5 +1,15 @@
 # Cambios
 
+## 2.3.0 — Mejoras gráficas (17 de noviembre de 2026)
+
+- Cielo nuevo hecho con un shader propio: nubes, sol con halo y estrellas de noche; se encapota con la lluvia y acompaña el amanecer del capítulo 5.
+- Texturas procedurales nuevas con relieve: pasto con briznas, follaje de hojas en árboles y setos, corteza, teja de barro, cantera y tablas de madera. El pasto y el asfalto tienen manchas grandes para que no se note la repetición.
+- Las texturas ya no tienen costuras (cuadrícula) al repetirse.
+- Se quitó el patrón de cuadros que las sombras dejaban en el pasto y el piso.
+- Halos de luz alrededor de los faroles de noche.
+- Las texturas generadas se guardan en el equipo: desde la segunda partida el mapa carga más rápido que antes (útil en celulares).
+- Sin cambios en la historia, los controles ni las partidas guardadas.
+
 ## 2.2.0 — Vida de barrio (17 de noviembre de 2026)
 
 Detalle: [DOCUMENTACION/VERSION_2_2.md](DOCUMENTACION/VERSION_2_2.md).

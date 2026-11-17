@@ -609,8 +609,8 @@ func _start_rain() -> void:
 	world.add_child(rain)
 	rain_left = RAIN_SECONDS
 	var env := world.environment
-	_sky_before = [world.sun.light_energy, env.fog_density, env.background_energy_multiplier, env.ambient_light_energy, env.tonemap_exposure]
-	_tween_sky([_sky_before[0] * 0.35, _sky_before[1] * 2.2, _sky_before[2] * 0.4, _sky_before[3] * 0.75, _sky_before[4] * 0.85], 3.0)
+	_sky_before = [world.sun.light_energy, env.fog_density, env.background_energy_multiplier, env.ambient_light_energy, env.tonemap_exposure, _cloud_cover()]
+	_tween_sky([_sky_before[0] * 0.35, _sky_before[1] * 2.2, _sky_before[2] * 0.4, _sky_before[3] * 0.75, _sky_before[4] * 0.85, 0.95], 3.0)
 
 
 func _stop_rain() -> void:
@@ -632,6 +632,18 @@ func _tween_sky(values: Array, time: float) -> void:
 	tw.tween_property(env, "background_energy_multiplier", values[2], time)
 	tw.tween_property(env, "ambient_light_energy", values[3], time)
 	tw.tween_property(env, "tonemap_exposure", values[4], time)
+	# Con el cielo de nubes (2.3), además se encapota.
+	var sky_mat := env.sky.sky_material as ShaderMaterial if env.sky != null else null
+	if sky_mat != null and values.size() > 5:
+		tw.tween_property(sky_mat, "shader_parameter/cloud_cover", values[5], time)
+
+
+func _cloud_cover() -> float:
+	var env := world.environment
+	var sky_mat := env.sky.sky_material as ShaderMaterial if env.sky != null else null
+	if sky_mat == null:
+		return 0.0
+	return float(sky_mat.get_shader_parameter("cloud_cover"))
 
 
 func _on_side_quests_changed() -> void:
