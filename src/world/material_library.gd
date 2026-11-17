@@ -3,9 +3,9 @@ extends RefCounted
 ## Materiales PBR compartidos (uno por tipo, reutilizados por todas las mallas
 ## para reducir cambios de estado al dibujar).
 ##
-## Las superficies principales (asfalto, andenes, ladrillo, revoque) usan
-## texturas procedurales con mapa de normales (TextureFactory); el resto, ruido
-## procedural o colores planos. En la Fase 5 se reemplazan por texturas PBR CC0.
+## Las superficies principales (asfalto, andenes, ladrillo, revoque, pasto,
+## follaje, corteza, teja, cantera y madera) usan texturas procedurales con
+## mapa de normales (TextureFactory); el resto, ruido procedural o colores planos.
 
 static var _cache: Dictionary = {}
 
@@ -45,7 +45,8 @@ static func get_material(id: String) -> StandardMaterial3D:
 	var m: StandardMaterial3D
 	match id:
 		"asphalt":
-			m = _patterned("asphalt", Color(1, 1, 1), 0.93, 0.25)
+			m = _patterned("asphalt", Color(1.1, 1.1, 1.1), 0.93, 0.25)
+			_add_macro_variation(m, 0.8)
 		"sidewalk":
 			m = _patterned("tiles", Color(1, 1, 1), 0.85, 0.7)
 		"curb":
@@ -63,9 +64,10 @@ static func get_material(id: String) -> StandardMaterial3D:
 		"roof":
 			m = _surface(Color(0.32, 0.31, 0.3), 0.95, 0.15, 0.5)
 		"tile_roof":
-			m = _surface(Color(0.6, 0.27, 0.16), 0.85, 0.15, 1.5)
+			m = _patterned("roof_tile", Color(0.8, 0.36, 0.21), 0.82, 0.5)
 		"grass":
-			m = _surface(Color(0.22, 0.38, 0.13), 0.95, 0.25, 0.7)
+			m = _patterned("grass", Color(0.28, 0.48, 0.17), 0.95, 0.3)
+			_add_macro_variation(m, 0.68)
 		"soil":
 			m = _surface(Color(0.33, 0.24, 0.16), 0.97, 0.2, 0.8)
 		"paint_white":
@@ -117,17 +119,17 @@ static func get_material(id: String) -> StandardMaterial3D:
 			m = _flat(Color(0.08, 0.08, 0.09), 0.4)
 			m.metallic = 0.8
 		"wood":
-			m = _surface(Color(0.45, 0.3, 0.18), 0.8, 0.15, 2.0)
+			m = _patterned("planks", Color(0.53, 0.35, 0.21), 0.78, 0.8)
 		"bark":
-			m = _surface(Color(0.3, 0.22, 0.15), 0.95, 0.2, 2.0)
+			m = _patterned("bark", Color(0.38, 0.28, 0.19), 0.95, 1.0)
 		"leaves":
-			m = _surface(Color(0.2, 0.4, 0.14), 0.9, 0.3, 1.5)
+			m = _foliage(Color(0.24, 0.47, 0.16))
 		"leaves_dark":
-			m = _surface(Color(0.12, 0.3, 0.1), 0.9, 0.3, 1.5)
+			m = _foliage(Color(0.14, 0.35, 0.12))
 		"leaves_flower":
-			m = _surface(Color(0.82, 0.25, 0.5), 0.85, 0.25, 1.5)   # Ocobo / bugambilia.
+			m = _foliage(Color(0.95, 0.3, 0.58))   # Ocobo / bugambilia.
 		"hedge":
-			m = _surface(Color(0.16, 0.36, 0.12), 0.95, 0.35, 2.5)
+			m = _foliage(Color(0.19, 0.42, 0.14))
 		"bulb":
 			m = _flat(Color(1.0, 0.95, 0.8), 0.3)
 			m.emission_enabled = true
@@ -211,7 +213,7 @@ static func get_material(id: String) -> StandardMaterial3D:
 			m.emission = Color(0.1, 0.35, 0.45)
 			m.emission_energy_multiplier = 0.25
 		"palm_trunk":
-			m = _surface(Color(0.5, 0.42, 0.32), 0.95, 0.35, 4.0)
+			m = _patterned("bark", Color(0.62, 0.53, 0.41), 0.95, 1.4)
 		"palm_frond":
 			m = _flat(Color(0.2, 0.42, 0.14), 0.8)
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -252,14 +254,14 @@ static func get_material(id: String) -> StandardMaterial3D:
 			m = _patterned("stucco", Color(0.97, 0.95, 0.9), 0.92, 0.35)
 		"stone":
 			# Cantera clara de la catedral.
-			m = _surface(Color(0.78, 0.72, 0.62), 0.9, 0.12, 0.6)
+			m = _patterned("stone_blocks", Color(0.84, 0.78, 0.67), 0.88, 0.4)
 		"bronze":
 			m = _flat(Color(0.32, 0.25, 0.14), 0.35)
 			m.metallic = 0.85
 		"gravel":
 			m = _surface(Color(0.55, 0.47, 0.36), 0.97, 0.25, 1.2)
 		"door_wood":
-			m = _surface(Color(0.32, 0.17, 0.08), 0.75, 0.12, 2.0)
+			m = _patterned("planks", Color(0.38, 0.2, 0.1), 0.72, 0.9)
 		"colonial_green":
 			m = _flat(Color(0.12, 0.38, 0.28), 0.6)
 		"colonial_blue":
@@ -311,6 +313,43 @@ static func _patterned(kind: String, tint: Color, roughness: float, scale: float
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3.ONE * scale
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return m
+
+
+## Manchas grandes (de varios metros) encima de la textura para que no se note
+## que se repite cada pocos metros en el pasto y el asfalto. Usa la capa de
+## detalle del material con otra escala; cuesta una lectura de textura más.
+static func _add_macro_variation(m: StandardMaterial3D, darkest: float) -> void:
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = 0.02
+	noise.fractal_octaves = 3
+	var tex := NoiseTexture2D.new()
+	tex.width = 128
+	tex.height = 128
+	tex.seamless = true
+	tex.noise = noise
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(darkest, darkest * 1.02, darkest * 0.9))
+	ramp.set_color(1, Color(1.0, 1.0, 1.0))
+	tex.color_ramp = ramp
+	m.detail_enabled = true
+	m.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+	m.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+	m.detail_albedo = tex
+	m.uv2_triplanar = true
+	m.uv2_world_triplanar = true
+	m.uv2_scale = Vector3.ONE * 0.035
+
+
+## Copas de árboles y setos: textura de hojas con relieve marcado y un poco de
+## luz que atraviesa las hojas (rim), para que no parezcan esferas lisas.
+static func _foliage(tint: Color) -> StandardMaterial3D:
+	var m := _patterned("leaves", tint * 1.2, 0.85, 0.6)
+	m.normal_scale = 1.0
+	m.rim_enabled = true
+	m.rim = 0.35
+	m.rim_tint = 0.6
 	return m
 
 

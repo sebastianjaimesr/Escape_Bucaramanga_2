@@ -6,6 +6,7 @@ extends Node3D
 
 const PLAYER_SCENE := "res://scenes/player/player.tscn"
 const FALL_RESET_Y := -25.0
+const SKY_SHADER := preload("res://src/world/shaders/city_sky.gdshader")
 
 var points: Dictionary = {}
 var player: PlayerController
@@ -124,16 +125,14 @@ func close_modal(panel: ModalPanel) -> void:
 ## Luz de final de la tarde (hacia las 5 p. m.): sol bajo y cálido, sombras
 ## largas, cielo con degradado y niebla suave que oculta el límite del área.
 func _build_environment() -> void:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.24, 0.42, 0.74)
-	sky_mat.sky_horizon_color = Color(0.92, 0.76, 0.6)
-	sky_mat.sky_curve = 0.12
-	sky_mat.ground_horizon_color = Color(0.72, 0.62, 0.54)
-	sky_mat.ground_bottom_color = Color(0.2, 0.19, 0.2)
-	sky_mat.sun_angle_max = 25.0
-	sky_mat.sun_curve = 0.08
+	# Cielo con nubes y estrellas (shader propio); TimeOfDay cambia la hora.
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = SKY_SHADER
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
+	# Radiancia pequeña: el cielo es estático y solo aporta luz ambiente.
+	sky.radiance_size = Sky.RADIANCE_SIZE_64
+	sky.process_mode = Sky.PROCESS_MODE_QUALITY
 	environment = Environment.new()
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
@@ -173,8 +172,8 @@ func _build_environment() -> void:
 	sun.light_energy = 1.45
 	sun.light_angular_distance = 0.8
 	sun.shadow_enabled = true
-	sun.shadow_bias = 0.03
-	sun.shadow_normal_bias = 1.2
+	sun.shadow_bias = 0.08
+	sun.shadow_normal_bias = 2.5
 	sun.shadow_blur = 1.2
 	sun.directional_shadow_blend_splits = true
 	add_child(sun)
