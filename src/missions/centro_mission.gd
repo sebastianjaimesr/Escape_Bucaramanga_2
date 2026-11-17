@@ -24,9 +24,7 @@ var locker: Interactable
 var locker_beacon: Beacon
 var finish_beacon: Beacon
 var cinematic: CinematicDirector
-var quests := QuestTracker.new()
 ## Personajes que entregan misiones: id de la misión -> Civilian.
-var givers: Dictionary = {}
 var customers: Array[Civilian] = []
 var delivered: Array[int] = []
 var photo_beacons: Dictionary = {}   ## lugar -> Beacon
@@ -40,7 +38,6 @@ var event_timer := 75.0
 var event_state := ""   ## "", "chase", "bag", "done", "escaped"
 var obleas_time := 0.0
 
-var _markers: Dictionary = {}   ## Civilian -> Label3D
 var _casillero_slips := 0
 var _ordonez_called := false
 
@@ -51,6 +48,7 @@ func _init(w: PrototypeWorld) -> void:
 	chapter_id = "cigarra"
 	max_lives = int(Chapters.get_chapter(chapter_id).get("lives", 3))
 	lives = max_lives
+	quests = QuestTracker.new()
 	routes = [
 		[Vector3(-9.0, 0.15, -50.0), Vector3(-9.0, 0.15, 50.0)],
 		[Vector3(-50.0, 0.15, -6.0), Vector3(50.0, 0.15, -6.0)],
@@ -60,9 +58,6 @@ func _init(w: PrototypeWorld) -> void:
 
 func _ready() -> void:
 	super()
-	quests.updated.connect(func(_id: String) -> void: save_progress())
-	quests.started.connect(_on_quest_started)
-	quests.completed.connect(_on_quest_completed)
 	if not GameSession.continue_saved:
 		respawn_point = points["spawn"]
 		respawn_yaw = points["spawn_yaw"]
@@ -112,17 +107,6 @@ func _setup() -> void:
 		EventBus.notify.emit("Buitrago: «Nosotros esperamos aquí. Si llega la patrulla de Ordóñez, nos hacemos los turistas.»"))
 	_setup_side_quests()
 	_setup_secrets()
-
-
-func _npc(look: Dictionary, who: String, pos: Vector3, yaw: float, talk: Callable, prompt: String) -> Civilian:
-	var c := Civilian.new(look)
-	c.display_name = who
-	c.position = pos
-	c.facing_yaw = yaw
-	c.on_talk = talk
-	world.add_child(c)
-	c.interactable.prompt = prompt
-	return c
 
 
 func _setup_side_quests() -> void:
@@ -425,22 +409,8 @@ func _dog_home() -> void:
 	quests.finish("firulais")
 
 
-func _on_quest_started(id: String) -> void:
-	AudioManager.sfx("discover")
-	EventBus.notify.emit("Misión secundaria: %s. Mira el registro de misiones (J)." % SideQuests.LIST[id]["title"])
+func _on_side_quests_changed() -> void:
 	_refresh_side_beacons()
-	save_progress()
-
-
-func _on_quest_completed(id: String, reward: Dictionary) -> void:
-	AudioManager.sfx("achievement")
-	Fx.ring(world, world.player.global_position, Color(1.0, 0.8, 0.3))
-	Fx.burst(world, world.player.global_position + Vector3.UP * 1.2, Color(1.0, 0.85, 0.35), 40, 1.2)
-	var bonus := " ¡Y la ñapa: +%d XP!" % int(reward["bonus"]["xp"]) if reward.has("bonus") else ""
-	EventBus.notify.emit("Misión completada: %s · +%d XP · +$%d%s" % [SideQuests.LIST[id]["title"], int(reward.get("xp", 0)),
-			int(reward.get("money", 0)), bonus])
-	_refresh_side_beacons()
-	save_progress()
 
 
 func _refresh_side_beacons() -> void:
@@ -484,11 +454,9 @@ func _on_snatcher_caught() -> void:
 
 func _on_snatcher_escaped() -> void:
 	event_state = "escaped"
-	quests.active.erase("raponero")
-	quests.tracked = quests.active[0] if not quests.active.is_empty() else ""
+	quests.abandon("raponero")
 	EventBus.notify.emit("El raponero se perdió por las calles del Centro. La próxima vez, ¡corre más!")
 	_vanish(snatcher)
-	quests.updated.emit("raponero")
 
 
 func _talk_victim() -> void:
@@ -497,7 +465,6 @@ func _talk_victim() -> void:
 		quests.advance("raponero", "devolver")
 		EventBus.notify.emit("La señora: «¡Mi bolso! Usted es el muchacho de las noticias, ¿no? ¡Qué va a ser ladrón, si es un héroe!»")
 		quests.finish("raponero")
-		PlayerProfile.add_stats({"events": 1})
 	elif event_state == "chase":
 		EventBus.notify.emit("La señora: «¡Corra, mijo, que se va!»")
 	else:
@@ -523,35 +490,6 @@ func _tick(delta: float) -> void:
 	if dog != null and dog.mode == "following" and quests.state("firulais") == "active" \
 			and dog.global_position.distance_to(givers["firulais"].global_position) < 4.5:
 		_dog_home()
-	_update_markers()
-
-
-## «!» dorado sobre quien tiene una misión para dar, «?» si ya se puede entregar.
-func _update_markers() -> void:
-	for id: String in givers:
-		var c: Civilian = givers[id]
-		var st := quests.state(id)
-		var text := ""
-		if st == "available":
-			text = "!"
-		elif st == "active" and quests.ready_to_finish(id):
-			text = "?"
-		if not _markers.has(c):
-			var l := Label3D.new()
-			l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			l.font_size = 120
-			l.pixel_size = 0.006
-			l.outline_size = 18
-			l.modulate = Color(1.0, 0.8, 0.25)
-			l.outline_modulate = Color(0.1, 0.06, 0.0, 0.9)
-			l.position = Vector3(0, 2.35, 0)
-			c.add_child(l)
-			_markers[c] = l
-		var label: Label3D = _markers[c]
-		label.text = text
-		label.visible = text != ""
-		if label.visible:
-			label.position.y = 2.35 + sin(elapsed * 3.0) * 0.06
 
 
 ## Lo que dice el registro de misiones sobre las cigarras pintadas.
@@ -568,7 +506,6 @@ func secrets_found() -> int:
 # ---------------------------------------------------------------------------
 func to_save() -> Dictionary:
 	var d := super()
-	d["quests"] = quests.to_data()
 	d["delivered"] = delivered.duplicate()
 	d["photos"] = photos_taken.duplicate()
 	d["obleas_time"] = obleas_time
@@ -582,7 +519,6 @@ func apply_save(data: Dictionary) -> void:
 	for e in evidence:
 		if e.id in steps_done:
 			e.mark_collected()
-	quests.from_data(data.get("quests", {}))
 	# El raponazo no se retoma a medias: si estaba en curso, se cancela.
 	if "raponero" in quests.active:
 		quests.active.erase("raponero")

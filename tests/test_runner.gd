@@ -142,6 +142,14 @@ func _ready() -> void:
 		"test_quest_tracker_bad_data",
 		"test_profile_without_2_0_keys",
 		"test_objective_feedback_fx",
+		# --- 2.2: vida de barrio en la manzana y en Cabecera ---
+		"test_side_quest_hojas",
+		"test_quest_pages_reachable",
+		"test_aguacero_event",
+		"test_aguacero_late_and_calm",
+		"test_side_quest_pan",
+		"test_journal_other_chapters",
+		"test_robo_continue_with_quests",
 	]:
 		# TEST_ONLY=prueba1,prueba2 corre solo esas (para depurar).
 		var only := OS.get_environment("TEST_ONLY")
@@ -2068,6 +2076,7 @@ func test_side_quest_fotos() -> void:
 	check(m.photos_taken.size() == 3, "Tres fotos tomadas")
 	check(m.quests.ready_to_finish("fotos") == false, "Falta mostrárselas a Mariana")
 	await frames(2)
+	check((m._markers[m.givers["fotos"]] as Label3D).text == "?", "Mariana muestra un «?»")
 	m.givers["fotos"].interactable.interact(player)
 	check(PlayerProfile.is_quest_done("fotos"), "Mariana recibe las fotos")
 
@@ -2218,3 +2227,164 @@ func _all_text(n: Node) -> String:
 	for c in n.get_children():
 		out += _all_text(c)
 	return out
+
+
+# ---------------------------------------------------------------------------
+# 2.2: vida de barrio
+# ---------------------------------------------------------------------------
+func _rm() -> RoboPlazaMission:
+	return world.mission as RoboPlazaMission
+
+
+func test_side_quest_hojas() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	var money := PlayerProfile.money
+	check(m.side_quest_ids() == ["hojas", "aguacero"], "El capítulo 2 tiene sus dos secundarias")
+	await frames(2)
+	check((m._markers[m.givers["hojas"]] as Label3D).text == "!", "Valentina tiene un «!»")
+	check(not m._markers.has(m.givers["aguacero"]) or not (m._markers[m.givers["aguacero"]] as Label3D).visible, "Don Pacho no anuncia el evento antes de tiempo")
+	for pg in m.pages:
+		check(not pg.visible and not pg.interactable.enabled, "Las hojas no se ven sin aceptar la misión")
+	m.givers["hojas"].interactable.interact(player)
+	check(m.quests.state("hojas") == "active", "Se acepta hablando con Valentina")
+	for pg in m.pages:
+		check(pg.visible and pg.interactable.enabled, "Aparece la hoja %s" % pg.id)
+	m.givers["hojas"].interactable.interact(player)
+	check(m.quests.state("hojas") == "active", "Sin las hojas no se puede entregar")
+	for pg in m.pages:
+		pg.interactable.interact(player)
+		pg.interactable.interact(player)
+	check(m.quests.count("hojas", "hojas") == 3, "Tres hojas, sin contar dos veces")
+	await frames(2)
+	check((m._markers[m.givers["hojas"]] as Label3D).text == "?", "Valentina muestra un «?»")
+	m.givers["hojas"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("hojas") and PlayerProfile.money >= money + 70, "Entregarlas paga la recompensa")
+
+
+func test_quest_pages_reachable() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.givers["hojas"].interactable.interact(player)
+	# La hoja de la plataforma y la de la caja se pisan; la del túnel queda a ras del suelo.
+	for i in 2:
+		var pos: Vector3 = m.pages[i].global_position
+		await place(pos + Vector3(0, 0.3, 0), 0.0)
+		await frames(20)
+		check(player.is_on_floor() and absf(player.global_position.y - pos.y) < 0.2,
+				"Se puede estar parado donde está la hoja %d (y=%.2f, hoja %.2f)" % [i, player.global_position.y, pos.y])
+	var tunnel: Vector3 = world.points["tunnel_inside"]
+	check(flat(m.pages[2].global_position - tunnel).length() < 0.5, "La tercera hoja está dentro del túnel")
+	for spec: Vector3 in m.BASKETS + [m.VALENTINA, m.PACHO]:
+		for r: Rect2 in world.points["footprints"]:
+			check(not r.grow(0.5).has_point(Vector2(spec.x, spec.z)), "Nada de la vida de barrio queda dentro de un edificio (%s)" % spec)
+
+
+func test_aguacero_event() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.aguacero_timer = 0.05
+	await frames(5)
+	check(m.aguacero_state == "", "Sin hablar con Doña Rosa no llueve")
+	m.rosa.interactable.interact(player)
+	await frames(5)
+	check(m.aguacero_state == "rain" and m.rain != null, "Se larga el aguacero")
+	check(m.quests.state("aguacero") == "active", "El evento aparece en el registro")
+	for b in m.baskets:
+		check(b.interactable.enabled, "La canasta %s se puede tapar" % b.id)
+	for b in m.baskets:
+		b.interactable.interact(player)
+	check(m.aguacero_state == "covered", "Las tres canastas quedan tapadas")
+	m.givers["aguacero"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("aguacero") and m.aguacero_state == "done", "Avisarle a Don Pacho termina el evento")
+	check(PlayerProfile.stat("events") >= 1.0, "Cuenta en las estadísticas de eventos")
+	m.rain_left = 0.05
+	await frames(5)
+	check(m.rain == null, "Al rato escampa")
+
+
+func test_aguacero_late_and_calm() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.rosa.interactable.interact(player)
+	# Mientras sigues al ladrón no llueve.
+	m.steps_done.append("sospechoso")
+	m.aguacero_timer = 0.05
+	await frames(5)
+	check(m.aguacero_state == "", "No llueve mientras sigues al ladrón")
+	m.steps_done.erase("sospechoso")
+	await frames(5)
+	check(m.aguacero_state == "rain", "Llueve cuando ya no hay persecución")
+	m.baskets[0].interactable.interact(player)
+	m.aguacero_left = 0.05
+	await frames(5)
+	check(m.aguacero_state == "late" and m.quests.state("aguacero") == "available", "Si no alcanzas, el evento se pierde sin romper nada")
+	check(not m.baskets[1].interactable.enabled, "Las canastas ya no responden")
+	check(not PlayerProfile.is_quest_done("aguacero"), "Y no paga")
+
+
+func test_side_quest_pan() -> void:
+	await spawn_chapter("gran_huida")
+	var m := world.mission as GranHuidaMission
+	PlayerProfile.quests_done.assign(["hojas", "aguacero"])
+	var money := PlayerProfile.money
+	m.bread_customers["celador"].interactable.interact(player)
+	check(m.bread_delivered.is_empty(), "Sin la misión no se entrega nada")
+	m.givers["pan"].interactable.interact(player)
+	check(m.quests.state("pan") == "active", "Don Ricardo entrega la misión")
+	m.bread_customers["celador"].interactable.interact(player)
+	m.bread_customers["celador"].interactable.interact(player)
+	check(m.quests.count("pan", "entregas") == 1, "Una entrega por cliente")
+	m.bread_customers["taxista"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("pan"), "Dos entregas terminan la misión")
+	check(PlayerProfile.money >= money + 90 + 30, "Sin que te vean, paga la ñapa")
+	check(PlayerProfile.has_achievement("amigo_barrio"), "Las tres secundarias nuevas dan «Amigo del barrio»")
+	check(not PlayerProfile.has_achievement("buen_vecino"), "«Buen vecino» sigue siendo del Centro")
+	var stairs: Vector3 = world.points["mirador_stairs"]
+	check(flat(m.bread_customers["celador"].global_position - stairs).length() < 4.0, "El celador está al pie del mirador")
+
+
+func test_journal_other_chapters() -> void:
+	await spawn_chapter("robo_plaza")
+	_press_key(KEY_J)
+	await frames(3)
+	var text := _all_text(world.escape_ui.journal._list)
+	check(text.contains("Las hojas de Valentina"), "El registro del capítulo 2 muestra sus secundarias")
+	check(not text.contains("Obleas") and not text.contains("Cigarras pintadas"), "Y no las del Centro")
+	check(not text.contains("¡Aguacero!"), "El aguacero no se anuncia antes de pasar")
+	_press_key(KEY_J)
+	await frames(3)
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	await spawn_chapter("malentendido")
+	_press_key(KEY_J)
+	await frames(3)
+	text = _all_text(world.escape_ui.journal._list)
+	check(not text.to_lower().contains("misiones secundarias"), "El capítulo 1 no lista secundarias que no tiene")
+	_press_key(KEY_J)
+	await frames(3)
+
+
+func test_robo_continue_with_quests() -> void:
+	GameSession.save_enabled = true
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.rosa.interactable.interact(player)
+	m.givers["hojas"].interactable.interact(player)
+	m.pages[1].interactable.interact(player)
+	m.aguacero_timer = 0.05
+	await frames(5)
+	check(m.aguacero_state == "rain", "Está lloviendo al guardar")
+	m.save_progress()
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	GameSession.continue_game()
+	await spawn_world()
+	m = _rm()
+	check(m.quests.state("hojas") == "active" and m.quests.count("hojas", "hojas") == 1, "Se carga el progreso de las hojas")
+	check(m.pages[1].done and not m.pages[1].visible and m.pages[0].visible, "La hoja recogida no vuelve a aparecer")
+	check(m.aguacero_state == "" and m.quests.state("aguacero") == "available", "El aguacero a medias se cancela al cargar")
+	check(m.aguacero_timer > 3.0, "Y vuelve a empezar al rato (%.1f s)" % m.aguacero_timer)
+	GameSession.save_enabled = false
