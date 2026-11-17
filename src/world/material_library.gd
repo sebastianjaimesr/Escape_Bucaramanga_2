@@ -246,6 +246,34 @@ static func get_material(id: String) -> StandardMaterial3D:
 		"van_white":
 			m = _flat(Color(0.92, 0.92, 0.9), 0.3)
 			m.metallic = 0.4
+		# --- El Centro (2.0) ---
+		"whitewash":
+			# Muros encalados de las casas coloniales y de la capilla.
+			m = _patterned("stucco", Color(0.97, 0.95, 0.9), 0.92, 0.35)
+		"stone":
+			# Cantera clara de la catedral.
+			m = _surface(Color(0.78, 0.72, 0.62), 0.9, 0.12, 0.6)
+		"bronze":
+			m = _flat(Color(0.32, 0.25, 0.14), 0.35)
+			m.metallic = 0.85
+		"gravel":
+			m = _surface(Color(0.55, 0.47, 0.36), 0.97, 0.25, 1.2)
+		"door_wood":
+			m = _surface(Color(0.32, 0.17, 0.08), 0.75, 0.12, 2.0)
+		"colonial_green":
+			m = _flat(Color(0.12, 0.38, 0.28), 0.6)
+		"colonial_blue":
+			m = _flat(Color(0.14, 0.32, 0.55), 0.6)
+		"graffiti":
+			m = _emissive(Color(0.25, 0.95, 0.55), 0.8)
+		"locker":
+			m = _flat(Color(0.55, 0.6, 0.62), 0.45)
+			m.metallic = 0.7
+		"quest_marker":
+			m = _emissive(Color(1.0, 0.78, 0.2), 2.2)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		"dog_fur":
+			m = _surface(Color(0.62, 0.42, 0.22), 0.95, 0.2, 2.0)
 		_:
 			if id.begins_with("facade_"):
 				var i := int(id.trim_prefix("facade_")) % FACADE_COLORS.size()

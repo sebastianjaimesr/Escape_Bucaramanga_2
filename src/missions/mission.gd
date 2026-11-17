@@ -59,6 +59,12 @@ var collectibles: Array[Collectible] = []
 var police_enabled := true
 ## Rutas de patrulla de la policía (se recorren en ciclo).
 var routes: Array = []
+## Misiones secundarias del capítulo (null si no tiene). El capítulo la crea
+## en _init; la base conecta sus señales, pinta los «!»/«?» sobre quien las
+## entrega (givers) y guarda su progreso con la partida.
+var quests: QuestTracker
+## id de la misión -> Civilian que la entrega.
+var givers: Dictionary = {}
 ## Punto y orientación donde se reaparece al ser atrapado.
 var respawn_point := Vector3.ZERO
 var respawn_yaw := 0.0
@@ -72,6 +78,7 @@ var _last_pos := Vector3.INF
 var _granizado_ready_at := 0.0
 var _grace := 0.0
 var _autosave := AUTOSAVE_SECONDS
+var _markers: Dictionary = {}   ## Civilian -> Label3D
 
 
 func _init(w: PrototypeWorld) -> void:
@@ -93,6 +100,10 @@ func _ready() -> void:
 	_spawn_vendor()
 	_spawn_pedestrians()
 	_setup()
+	if quests != null:
+		quests.updated.connect(func(_id: String) -> void: save_progress())
+		quests.started.connect(_on_quest_started)
+		quests.completed.connect(_on_quest_completed)
 	if police_enabled:
 		_spawn_police()
 	_spawn_collectibles()
@@ -158,6 +169,8 @@ func _physics_process(delta: float) -> void:
 			_distance += step
 	_last_pos = pos
 	_tick(delta)
+	if quests != null:
+		_update_quest_markers()
 	_autosave -= delta
 	if _autosave <= 0.0:
 		save_progress()
@@ -312,6 +325,7 @@ func _complete(step_id: String) -> void:
 		return
 	steps_done.append(step_id)
 	step_completed.emit(step_id)
+	Fx.celebrate(world, world.player.global_position)
 	PlayerProfile.add_xp(Chapters.STEP_XP, "Objetivo")
 	if step(step_id).get("checkpoint", false):
 		set_checkpoint(world.player.global_position, world.player.facing_yaw)
@@ -366,6 +380,7 @@ func _win() -> void:
 	finished = true
 	_set_police_active(false)
 	world.player.input_enabled = false
+	Fx.celebrate(world, world.player.global_position, true)
 	EventBus.mission_completed.emit()
 	if GameSession.save_enabled:
 		SaveGame.erase()
@@ -413,11 +428,14 @@ func save_progress() -> void:
 
 
 func to_save() -> Dictionary:
-	return {
+	var d := {
 		"chapter": chapter_id, "mode": mode, "elapsed": elapsed, "penalty": penalty, "caught": caught_count,
 		"wrong": wrong_answers, "inventory": inventory.to_data(), "steps_done": steps_done.duplicate(),
 		"hints": hints.to_data(), "lives": lives,
 	}
+	if quests != null:
+		d["quests"] = quests.to_data()
+	return d
 
 
 func apply_save(data: Dictionary) -> void:
@@ -435,6 +453,87 @@ func apply_save(data: Dictionary) -> void:
 	for s: Variant in data.get("steps_done", []):
 		if not step(str(s)).is_empty() and not str(s) in steps_done:
 			steps_done.append(str(s))
+	if quests != null:
+		quests.from_data(data.get("quests", {}))
+
+
+# ---------------------------------------------------------------------------
+# Misiones secundarias (las usan los capítulos que crean `quests`)
+# ---------------------------------------------------------------------------
+## Un personaje con quien se habla (Interactuar).
+func _npc(look: Dictionary, who: String, pos: Vector3, yaw: float, talk: Callable, prompt: String) -> Civilian:
+	var c := Civilian.new(look)
+	c.display_name = who
+	c.position = pos
+	c.facing_yaw = yaw
+	c.on_talk = talk
+	world.add_child(c)
+	c.interactable.prompt = prompt
+	return c
+
+
+## Las misiones secundarias de este capítulo (en el orden de SideQuests.LIST).
+func side_quest_ids() -> Array[String]:
+	return SideQuests.for_chapter(chapter_id)
+
+
+## Algo cambió en las secundarias (aceptar, terminar): el capítulo actualiza
+## sus columnas de luz y objetos.
+func _on_side_quests_changed() -> void:
+	pass
+
+
+func _on_quest_started(id: String) -> void:
+	AudioManager.sfx("discover")
+	var kind := "Evento" if SideQuests.LIST[id].get("event", false) else "Misión secundaria"
+	var title: String = SideQuests.LIST[id]["title"]
+	var dot := "" if title.ends_with("!") or title.ends_with("?") else "."
+	EventBus.notify.emit("%s: %s%s Mira el registro de misiones (J)." % [kind, title, dot])
+	_on_side_quests_changed()
+	save_progress()
+
+
+func _on_quest_completed(id: String, reward: Dictionary) -> void:
+	AudioManager.sfx("achievement")
+	Fx.ring(world, world.player.global_position, Color(1.0, 0.8, 0.3))
+	Fx.burst(world, world.player.global_position + Vector3.UP * 1.2, Color(1.0, 0.85, 0.35), 40, 1.2)
+	if SideQuests.LIST[id].get("event", false):
+		PlayerProfile.add_stats({"events": 1})
+	var bonus := " ¡Y la ñapa: +%d XP!" % int(reward["bonus"]["xp"]) if reward.has("bonus") else ""
+	EventBus.notify.emit("Misión completada: %s · +%d XP · +$%d%s" % [SideQuests.LIST[id]["title"], int(reward.get("xp", 0)),
+			int(reward.get("money", 0)), bonus])
+	_on_side_quests_changed()
+	save_progress()
+
+
+## «!» dorado sobre quien tiene una misión para dar, «?» si ya se puede entregar.
+func _update_quest_markers() -> void:
+	for id: String in givers:
+		var c: Civilian = givers[id]
+		if not is_instance_valid(c):
+			continue
+		var st := quests.state(id)
+		var text := ""
+		if st == "available" and not SideQuests.LIST[id].get("event", false):
+			text = "!"
+		elif quests.ready_to_return(id):
+			text = "?"
+		if not _markers.has(c):
+			var l := Label3D.new()
+			l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			l.font_size = 120
+			l.pixel_size = 0.006
+			l.outline_size = 18
+			l.modulate = Color(1.0, 0.8, 0.25)
+			l.outline_modulate = Color(0.1, 0.06, 0.0, 0.9)
+			l.position = Vector3(0, 2.35, 0)
+			c.add_child(l)
+			_markers[c] = l
+		var label: Label3D = _markers[c]
+		label.text = text
+		label.visible = text != ""
+		if label.visible:
+			label.position.y = 2.35 + sin(elapsed * 3.0) * 0.06
 
 
 # ---------------------------------------------------------------------------

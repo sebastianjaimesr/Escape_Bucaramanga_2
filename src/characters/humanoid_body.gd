@@ -96,6 +96,11 @@ func _ready() -> void:
 		_part(_head, _sphere(0.018), Vector3(side * 0.04, 0.02, -0.103), "eyes")
 		_part(_head, _sphere(0.025), Vector3(side * 0.112, 0.0, 0.0), "skin")   # orejas
 	_part(_head, _box(Vector3(0.03, 0.04, 0.04)), Vector3(0, -0.015, -0.115), "skin")  # nariz
+	# Cejas y boca (2.0): la cara se lee de lejos y cada personaje tiene expresión.
+	for side: float in [-1.0, 1.0]:
+		var brow := _part(_head, _box(Vector3(0.045, 0.012, 0.012)), Vector3(side * 0.042, 0.052, -0.108), "hair")
+		brow.rotation.z = side * -0.12
+	_part(_head, _box(Vector3(0.05, 0.012, 0.01)), Vector3(0, -0.055, -0.108), "mouth")
 	match String(look["hair_style"]):
 		"short":
 			var hair := _part(_head, _hemisphere(0.122), Vector3(0, 0.015, 0.008), "hair")
@@ -226,6 +231,8 @@ func _material(key: String) -> StandardMaterial3D:
 		"eyes":
 			m.albedo_color = Color(0.05, 0.04, 0.04)
 			m.roughness = 0.2
+		"mouth":
+			m.albedo_color = (look["skin"] as Color).darkened(0.45)
 		"stripe":
 			m.albedo_color = Color(0.85, 0.85, 0.85)
 			m.metallic = 0.6

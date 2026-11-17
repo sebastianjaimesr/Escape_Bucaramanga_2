@@ -107,9 +107,9 @@ func _build_home() -> VBoxContainer:
 	t2.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
 	t2.add_theme_constant_override("shadow_offset_y", 3)
 	col.add_child(t2)
-	var sub := UiStyle.label("Una aventura urbana en cinco capítulos", 24, UiStyle.ACCENT, 500)
+	var sub := UiStyle.label("Una aventura urbana en seis capítulos", 24, UiStyle.ACCENT, 500)
 	col.add_child(sub)
-	var intro := UiStyle.label("Todo empezó a las 17:42, cuando la policía confundió a Sebastián con un ladrón. Aclararlo fue solo el comienzo: detrás de los robos del barrio hay una red. Investiga, sigue sospechosos, entra de noche a una bodega, escapa bajo la lluvia y cruza las terrazas de Cabecera hasta el Puente de la Novena antes del amanecer.", 18, UiStyle.TEXT_DIM)
+	var intro := UiStyle.label("Todo empezó a las 17:42, cuando la policía confundió a Sebastián con un ladrón. Aclararlo fue solo el comienzo: detrás de los robos del barrio hay una red. Investiga, sigue sospechosos, entra de noche a una bodega, escapa bajo la lluvia, cruza las terrazas de Cabecera y descubre en el Centro quién es el «amigo en la estación».", 18, UiStyle.TEXT_DIM)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.custom_minimum_size = Vector2(300, 0)
 	col.add_child(intro)
@@ -312,16 +312,17 @@ func _build_howto() -> VBoxContainer:
 	col.add_child(UiStyle.overline("Instrucciones"))
 	col.add_child(UiStyle.title("Cómo se juega", 40))
 	var sections := [
-		["La campaña", "Cinco capítulos que se desbloquean en orden: aclarar el malentendido, recuperar la plata robada de la natillera, entrar de noche a la bodega de la red, escapar bajo la lluvia y, en Cabecera, la gran huida hasta el Puente de la Novena. Cada capítulo tiene sus objetivos arriba a la izquierda."],
+		["La campaña", "Seis capítulos que se desbloquean en orden: aclarar el malentendido, recuperar la plata robada de la natillera, entrar de noche a la bodega de la red, escapar bajo la lluvia, la gran huida por Cabecera y, en el Centro, seguir las señales de La Cigarra. Cada capítulo tiene sus objetivos arriba a la izquierda."],
 		["Pruebas y acertijos", "Los brillos dorados son pruebas u objetos: examínalos en el inventario, porque sus detalles abren cerraduras y señalan culpables."],
 		["La policía y la búsqueda", "Los cuadritos de arriba son el nivel de búsqueda: Tranquilo, Sospecha, Búsqueda, Persecución y Cerco. Sube si te ven o si una cámara te graba, y baja cuando nadie te ve (el doble de rápido escondido en un matorral, agachado). Desde Persecución llegan refuerzos."],
 		["Oportunidades y puntos de control", "Desde el capítulo 2 tienes tres corazones: cada vez que te atrapan pierdes uno y vuelves al último punto de control. Sin corazones, se reintenta el capítulo."],
 		["Moverse por la ciudad", "Salta contra un muro bajo para treparlo. Agáchate mientras corres para deslizarte. Lanza una lata (G) para que los guardias vayan a mirar el ruido. Con la chaqueta de la tienda o el impermeable, Q te disfraza."],
 		["Parkour en las terrazas", "Los saltos largos entre terrazas solo salen corriendo. Si caes de alto, pulsa Agacharse al aterrizar para rodar: sin rodar te aturdes, y desde muy alto pierdes un corazón. En las tirolesas, Interactuar para colgarte y Saltar para soltarte."],
 		["Drones", "Los drones alumbran un círculo en el suelo. Si te quedas en la luz te descubren y te siguen; corre fuera del círculo, métete bajo un toldo o agáchate en una jardinera."],
-		["Progreso", "Cada objetivo, logro y postal da XP. Al subir de nivel ganas un punto de habilidad. Con el dinero de los capítulos compras objetos en la tienda. Hay 15 postales escondidas con datos de Bucaramanga. En Perfil → Estadísticas ves tus récords."],
+		["Progreso", "Cada objetivo, logro y postal da XP. Al subir de nivel ganas un punto de habilidad. Con el dinero de los capítulos compras objetos en la tienda. Hay %d postales escondidas con datos de Bucaramanga. En la manzana, en Cabecera y en El Centro hay misiones secundarias (J abre el registro de misiones), y en El Centro, cigarras pintadas secretas. En Perfil → Estadísticas ves tus récords." % Chapters.COLLECTIBLES.size()],
+		["Misiones secundarias y secretos", "En la manzana, en Cabecera y en el Centro, los personajes con un «!» dorado sobre la cabeza tienen una misión para ti; cuando ves un «?», ya puedes entregarla. El registro de misiones (J) muestra la principal, las secundarias con su progreso y las cigarras pintadas que llevas. A veces pasan cosas inesperadas, como un raponazo o un aguacero: atento a lo que pasa en la calle."],
 		["Pistas", "Si te atascas, pide una pista (H o el bombillo). Cada objetivo tiene tres: la última da la solución. No restan tiempo, pero cuentan en el resultado."],
-		["Teclado y ratón", "WASD mover · Shift correr · Espacio saltar o trepar · C agacharse o deslizarse · E interactuar · G lanzar lata · Q disfraz · Tab inventario · H pista · Esc pausa. Las teclas se pueden cambiar en Configuración."],
+		["Teclado y ratón", "WASD mover · Shift correr · Espacio saltar o trepar · C agacharse o deslizarse · E interactuar · G lanzar lata · Q disfraz · Tab inventario · J registro de misiones · H pista · Esc pausa. Las teclas se pueden cambiar en Configuración."],
 		["Pantalla táctil", "Mitad izquierda: mover. Mitad derecha: girar la cámara. Botones Usar, Saltar, Agachar, Correr, Lata y Disfraz. Arriba: inventario, pistas, sonido y pausa."],
 		["Guardado", "La partida se guarda sola al lograr cada objetivo y al pausar. «Continuar» la retoma con todo lo conseguido. El perfil (nivel, dinero, logros) se guarda aparte y nunca se pierde."],
 	]

@@ -31,12 +31,15 @@ var map_half := PrototypeBlockBuilder.HALF_SIZE
 func _ready() -> void:
 	_build_environment()
 	var chapter := Chapters.get_chapter(GameSession.chapter)
-	# Cada capítulo dice en qué distrito pasa: la manzana de la plaza o Cabecera.
+	# Cada capítulo dice en qué distrito pasa: la manzana de la plaza, Cabecera o el Centro.
 	var builder: PrototypeBlockBuilder
-	if str(chapter.get("map", "manzana")) == "cabecera":
-		builder = CabeceraBuilder.new(self)
-	else:
-		builder = PrototypeBlockBuilder.new(self)
+	match str(chapter.get("map", "manzana")):
+		"cabecera":
+			builder = CabeceraBuilder.new(self)
+		"centro":
+			builder = CentroBuilder.new(self)
+		_:
+			builder = PrototypeBlockBuilder.new(self)
 	points = builder.build()
 	map_half = builder.half_size
 	navigation = NavigationBuilder.bake(self, builder.root, map_half)

@@ -35,6 +35,12 @@ var _hint: Label
 var _capture: Label
 var _portrait: Label
 var _steps_box: VBoxContainer
+var _quest_box: VBoxContainer
+var _step_flash: Label
+var _step_tween: Tween
+var _quest_title: Label
+var _quest_text: Label
+var _quest_refresh := 0.0
 var _step_rows: Dictionary = {}
 var _timer_pill: PanelContainer
 var _timer_icon: ItemIcon
@@ -101,6 +107,11 @@ func _ready() -> void:
 	_build_banner()
 	_build_cinematic()
 	_build_zone_card()
+	_step_flash = _outlined("✓  OBJETIVO CUMPLIDO", 26, UiStyle.OK)
+	UiStyle.place(_step_flash, Vector4(0.5, 0, 0.5, 0), Vector4(-260, 150, 260, 190))
+	_step_flash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_step_flash.visible = false
+	_root.add_child(_step_flash)
 	_capture = _outlined("Haz clic para controlar la cámara", 18)
 	UiStyle.place(_capture, Vector4(0.5, 1, 0.5, 1), Vector4(-250, -230, 250, -200))
 	_capture.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -135,7 +146,9 @@ func _ready() -> void:
 			AudioManager.sfx("checkpoint")
 			_on_notify("Punto de control guardado. Si te atrapan, vuelves aquí."))
 		mission.discovered.connect(_on_discovered)
-		mission.step_completed.connect(func(_id: String) -> void: _refresh_steps(true))
+		mission.step_completed.connect(func(_id: String) -> void:
+			_refresh_steps(true)
+			_flash_step())
 		mission.inventory.changed.connect(_refresh_badge)
 		_refresh_steps(false)
 		_refresh_badge()
@@ -217,6 +230,20 @@ func _build_objective() -> void:
 	_steps_box = VBoxContainer.new()
 	_steps_box.add_theme_constant_override("separation", 3)
 	col.add_child(_steps_box)
+	# Misión secundaria que se está siguiendo (solo en los distritos que tienen).
+	_quest_box = VBoxContainer.new()
+	_quest_box.add_theme_constant_override("separation", 2)
+	_quest_box.visible = false
+	col.add_child(_quest_box)
+	var qsep := HSeparator.new()
+	qsep.add_theme_stylebox_override("separator", line)
+	_quest_box.add_child(qsep)
+	_quest_title = UiStyle.overline("", Color(0.45, 0.8, 1.0), 12)
+	_quest_box.add_child(_quest_title)
+	_quest_text = UiStyle.label("", 14, UiStyle.TEXT)
+	_quest_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_quest_text.custom_minimum_size = Vector2(320, 0)
+	_quest_box.add_child(_quest_text)
 	if mission == null:
 		panel.visible = false
 		return
@@ -366,7 +393,7 @@ func _build_top_right() -> void:
 	col.add_theme_constant_override("separation", 12)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.alignment = BoxContainer.ALIGNMENT_BEGIN
-	UiStyle.place(col, Vector4(1, 0, 1, 0), Vector4(-20 - Minimap.SIZE - 40, 20, -20, 300))
+	UiStyle.place(col, Vector4(1, 0, 1, 0), Vector4(-20 - 300, 20, -20, 300))
 	_root.add_child(col)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
@@ -386,6 +413,9 @@ func _build_top_right() -> void:
 	row.add_child(_icon_button("bulb", "Pedir una pista (%s)" % InputConfig.key_name("hint"), func() -> void:
 		if escape_ui != null:
 			escape_ui.open_panel("hints")))
+	row.add_child(_icon_button("book", "Registro de misiones (%s)" % InputConfig.key_name("journal"), func() -> void:
+		if escape_ui != null:
+			escape_ui.open_panel("journal")))
 	var sound := _icon_button("mute" if AudioManager.is_muted() else "sound", "Silenciar o activar el sonido", func() -> void:
 		AudioManager.toggle_mute())
 	_sound_icon = sound.get_child(0) as ItemIcon
@@ -488,11 +518,11 @@ func _refresh_hint() -> void:
 		return
 	var move := "%s%s%s%s" % [InputConfig.key_name("move_forward"), InputConfig.key_name("move_left"),
 			InputConfig.key_name("move_back"), InputConfig.key_name("move_right")]
-	_hint.text = "%s  mover · %s  correr · %s  saltar / trepar\n%s  agacharse / deslizarse (corriendo) · %s  interactuar\n%s  lanzar lata · %s  disfraz · %s  inventario · %s  pista · Esc  pausa" % [
+	_hint.text = "%s  mover · %s  correr · %s  saltar / trepar\n%s  agacharse / deslizarse (corriendo) · %s  interactuar\n%s  lanzar lata · %s  disfraz · %s  inventario · %s  misiones · %s  pista · Esc  pausa" % [
 		move, InputConfig.key_name("run"), InputConfig.key_name("jump"),
 		InputConfig.key_name("crouch"), InputConfig.key_name("interact"),
 		InputConfig.key_name("throw"), InputConfig.key_name("gadget"),
-		InputConfig.key_name("inventory"), InputConfig.key_name("hint")]
+		InputConfig.key_name("inventory"), InputConfig.key_name("journal"), InputConfig.key_name("hint")]
 
 
 func _refresh_steps(animate: bool) -> void:
@@ -523,6 +553,32 @@ func _refresh_steps(animate: bool) -> void:
 		AudioManager.sfx("pickup")
 
 
+## Aviso breve al cumplir un objetivo (el panel de pasos también se anima).
+func _flash_step() -> void:
+	_step_flash.visible = true
+	_step_flash.modulate.a = 1.0
+	_step_flash.scale = Vector2.ONE
+	if _step_tween != null:
+		_step_tween.kill()
+	_step_tween = _step_flash.create_tween()
+	if not bool(Settings.get_value("interface", "reduce_motion")):
+		_step_flash.pivot_offset = Vector2(260, 20)
+		_step_flash.scale = Vector2(1.25, 1.25)
+		_step_tween.tween_property(_step_flash, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_step_tween.tween_interval(1.4)
+	_step_tween.tween_property(_step_flash, "modulate:a", 0.0, 0.5)
+	_step_tween.tween_callback(func() -> void: _step_flash.visible = false)
+
+
+func _refresh_quest_line() -> void:
+	var tracker: QuestTracker = mission.get("quests") as QuestTracker if mission != null else null
+	var info: Array = tracker.tracked_text() if tracker != null else []
+	_quest_box.visible = not info.is_empty() and not mission.finished
+	if _quest_box.visible:
+		_quest_title.text = "Secundaria · " + str(info[0])
+		_quest_text.text = str(info[1])
+
+
 func _refresh_badge() -> void:
 	var n := mission.inventory.items.size()
 	_bag_badge.text = str(n)
@@ -530,6 +586,10 @@ func _refresh_badge() -> void:
 
 
 func _process(delta: float) -> void:
+	_quest_refresh -= delta
+	if _quest_refresh <= 0.0:
+		_quest_refresh = 0.25
+		_refresh_quest_line()
 	var world := get_parent() as PrototypeWorld
 	var touch := world != null and world.uses_touch()
 	_capture.visible = not touch and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not get_tree().paused \

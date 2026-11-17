@@ -127,6 +127,29 @@ func _ready() -> void:
 		"test_zone_title_card",
 		"test_profile_stats",
 		"test_menu_credits_and_stats",
+		# --- 2.0: El Centro y el capítulo 6 ---
+		"test_centro_builds",
+		"test_cigarra_full_run",
+		"test_cigarra_locker_needs_signals",
+		"test_paradero_climbable",
+		"test_side_quest_obleas",
+		"test_side_quest_fotos",
+		"test_side_quest_firulais",
+		"test_snatch_event",
+		"test_secret_spot",
+		"test_journal_panel",
+		"test_cigarra_continue_with_quests",
+		"test_quest_tracker_bad_data",
+		"test_profile_without_2_0_keys",
+		"test_objective_feedback_fx",
+		# --- 2.2: vida de barrio en la manzana y en Cabecera ---
+		"test_side_quest_hojas",
+		"test_quest_pages_reachable",
+		"test_aguacero_event",
+		"test_aguacero_late_and_calm",
+		"test_side_quest_pan",
+		"test_journal_other_chapters",
+		"test_robo_continue_with_quests",
 	]:
 		# TEST_ONLY=prueba1,prueba2 corre solo esas (para depurar).
 		var only := OS.get_environment("TEST_ONLY")
@@ -1923,3 +1946,445 @@ func test_menu_credits_and_stats() -> void:
 	check((menu._pages["profile"] as ProfilePanel).tab == "stats", "El perfil tiene estadísticas")
 	menu.queue_free()
 	await frames(2)
+
+
+# ---------------------------------------------------------------------------
+# 2.0 · El Centro y el capítulo 6 «La Cigarra»
+# ---------------------------------------------------------------------------
+func _cm() -> CentroMission:
+	return world.mission as CentroMission
+
+
+func test_centro_builds() -> void:
+	await spawn_chapter("cigarra")
+	check(world.points.get("map", "") == "centro", "El capítulo 6 carga el Centro")
+	check(world.map_half == CentroBuilder.C_HALF, "El Centro mide 120 m")
+	var names: Array[String] = []
+	for z: Node in world.get_tree().get_nodes_in_group("zone"):
+		names.append((z as ZoneTrigger).title)
+	for n: String in ["Parque Santander", "Parque García Rovira", "Carrera 27", "Parque de las Cigarras", "La Catedral", "Capilla de los Dolores"]:
+		check(n in names, "Existe la zona «%s»" % n)
+	check(int(world.points.get("trees", 0)) >= 40, "El Centro tiene árboles (%d)" % int(world.points.get("trees", 0)))
+	check(world.mission.collectibles.size() == _map_collectibles("centro"), "Aparecen las postales del Centro")
+	check(_map_collectibles("centro") == 6, "Seis postales en el Centro (García Rovira y la Casa de Bolívar se movieron aquí)")
+	check(_map_collectibles("cabecera") == 3, "A Cabecera le quedan tres postales")
+	check(_cm().secrets.size() == 5, "Cinco cigarras pintadas")
+	check(_cm().givers.size() == 3, "Tres personajes dan misiones")
+	check((world.points["hiding_spots"] as Array).size() >= 7, "Hay matorrales para esconderse")
+	# Nada importante queda dentro de un edificio.
+	for key: String in ["spawn", "meeting_point", "lockers", "obleas", "catedral", "capilla", "casa_bolivar", "paradero"]:
+		var p: Vector3 = world.points[key]
+		for r: Rect2 in world.points["footprints"]:
+			check(not r.has_point(Vector2(p.x, p.z)), "«%s» no queda dentro de un edificio" % key)
+	await frames(30)
+	check(player.is_on_floor(), "Sebastián aparece parado en el andén")
+
+
+func test_cigarra_full_run() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	check(m.current_step().get("id", "") == "lucia", "Primero se habla con Lucía")
+	for e in m.evidence:
+		check(not e.interactable.enabled, "Las señales no aparecen antes de hablar con Lucía")
+	m.lucia.interactable.interact(player)
+	await frames(2)
+	check(m.is_done("lucia") and m.inventory.has("mensaje_cigarra"), "Lucía entrega el mensaje de La Cigarra")
+	for e in m.evidence:
+		check(e.interactable.enabled, "La señal %s aparece" % e.id)
+		e.interactable.interact(player)
+	await frames(2)
+	for id: String in ["senal_santander", "senal_rovira", "senal_27"]:
+		check(m.is_done(id) and m.inventory.has(id), "Se recoge %s" % id)
+	check(m.locker_beacon.active, "Aparece la columna de luz del casillero")
+	m.locker.interact(player)
+	await frames(3)
+	check(world.escape_ui.code_lock.is_open, "El casillero abre el teclado")
+	world.escape_ui.code_lock.close()
+	await frames(3)
+	var officers_before := m.officers.size()
+	check(not m.try_code("1622"), "La clave de Cabecera no sirve")
+	check(m.try_code("4027"), "La clave 4027 abre el casillero")
+	await frames(10)
+	check(m.is_done("casillero") and m.inventory.has("grabacion"), "Se obtiene la grabación")
+	check(m.officers.size() == officers_before + 2, "Llega la patrulla de Ordóñez")
+	check(not PlayerProfile.has_achievement("descifrador"), "Con un error no se gana «Descifrador»")
+	check(m.finish_beacon.active, "Aparece el punto de entrega en el García Rovira")
+	await place(world.points["meeting_point"], 0.0)
+	await frames(15)
+	check(m.finished and not m.failed, "Entregar la grabación gana el capítulo 6")
+	check(PlayerProfile.is_chapter_done("cigarra"), "El capítulo queda terminado en el perfil")
+	check(PlayerProfile.has_achievement("la_cigarra"), "Da el logro «La Cigarra»")
+
+
+func test_cigarra_locker_needs_signals() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	m.lucia.interactable.interact(player)
+	m.evidence[0].interactable.interact(player)
+	await frames(2)
+	m.locker.interact(player)
+	await frames(3)
+	check(not world.escape_ui.code_lock.is_open, "Sin las tres señales el casillero no abre el teclado")
+	check(not m.try_code("4027"), "Ni con la clave correcta")
+	check(not m.locker_beacon.active, "La columna del casillero espera las tres señales")
+
+
+func test_paradero_climbable() -> void:
+	await spawn_chapter("cigarra")
+	var roof: Vector3 = world.points["paradero_roof"]
+	var pos: Vector3 = world.points["paradero"]
+	# Escalones: jardinera (0,6 m), caja de luz (1,4 m) y techo (≈2,5 m): ningún salto pasa de 1,2 m.
+	var heights := [0.0, 0.6, 1.4, roof.y - PrototypeBlockBuilder.CURB_HEIGHT]
+	for i in range(1, heights.size()):
+		check(heights[i] - heights[i - 1] <= 1.2, "Cada escalón del paradero se sube saltando (%.2f m)" % (heights[i] - heights[i - 1]))
+	await place(roof + Vector3(0, 0.2, 0), 0.0)
+	await frames(20)
+	check(player.is_on_floor() and absf(player.global_position.y - roof.y) < 0.15, "Se puede estar parado en el techo (y=%.2f)" % player.global_position.y)
+	check(flat(pos - roof).length() < 2.0, "El paradero está junto a la 27")
+
+
+func test_side_quest_obleas() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	var money := PlayerProfile.money
+	check(m.quests.state("obleas") == "available", "La misión de las obleas está disponible")
+	await frames(2)
+	check((m._markers[m.givers["obleas"]] as Label3D).text == "!", "Don Aníbal tiene un «!»")
+	m.givers["obleas"].interactable.interact(player)
+	check(m.quests.state("obleas") == "active", "Se acepta hablando con Don Aníbal")
+	check(m.quests.tracked == "obleas" and m.quests.tracked_text()[1].contains("0/3"), "El HUD sigue la misión (0/3)")
+	for i in 3:
+		m.customers[i].interactable.interact(player)
+		m.customers[i].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("obleas"), "Tres entregas terminan la misión")
+	check(m.quests.count("obleas", "entregas") == 3, "No se cuentan entregas repetidas")
+	check(PlayerProfile.money >= money + 120 + 40, "Paga la recompensa y la ñapa por llegar rápido")
+	m.givers["obleas"].interactable.interact(player)
+	check(m.quests.state("obleas") == "done", "No se puede repetir")
+
+
+func test_side_quest_fotos() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	for place_id: String in m.photo_beacons:
+		check(not (m.photo_beacons[place_id] as Beacon).active, "Las fotos no se marcan sin aceptar la misión")
+	m.givers["fotos"].interactable.interact(player)
+	for place_id: String in ["catedral", "capilla", "casa_bolivar"]:
+		check((m.photo_beacons[place_id] as Beacon).active, "Se marca el lugar %s" % place_id)
+		await place(world.points[place_id], 0.0)
+		await frames(5)
+	check(m.photos_taken.size() == 3, "Tres fotos tomadas")
+	check(m.quests.ready_to_finish("fotos") == false, "Falta mostrárselas a Mariana")
+	await frames(2)
+	check((m._markers[m.givers["fotos"]] as Label3D).text == "?", "Mariana muestra un «?»")
+	m.givers["fotos"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("fotos"), "Mariana recibe las fotos")
+
+
+func test_side_quest_firulais() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	m.dog.interactable.interact(player)
+	check(m.dog.mode == "waiting", "Firulais no sigue a nadie sin la misión")
+	m.givers["firulais"].interactable.interact(player)
+	await place(m.dog.global_position + Vector3(1.5, 0, 0), 0.0)
+	m.dog.interactable.interact(player)
+	check(m.dog.mode == "following", "Al llamarlo, Firulais te sigue")
+	var carmen: Vector3 = m.givers["firulais"].global_position
+	await place(carmen + Vector3(2.5, 0, 0), 0.0)
+	await seconds(3.0)
+	check(PlayerProfile.is_quest_done("firulais"), "Firulais vuelve con Doña Carmen")
+	check(m.dog.mode == "home", "Y se queda con ella")
+
+
+func test_snatch_event() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	m.lucia.interactable.interact(player)
+	m.event_timer = 0.05
+	await frames(10)
+	check(m.snatcher != null and m.event_state == "chase", "Pasa el raponazo")
+	check(m.quests.state("raponero") == "active", "El evento aparece en el registro")
+	await seconds(1.0)
+	await place(m.snatcher.global_position + Vector3(0, 0, -0.8), 0.0)
+	await frames(5)
+	check(m.event_state == "bag", "Alcanzarlo recupera el bolso")
+	m.victim.interactable.interact(player)
+	check(PlayerProfile.is_quest_done("raponero"), "Devolver el bolso termina el evento")
+	check(PlayerProfile.stat("events") >= 1.0, "Cuenta en las estadísticas")
+
+
+func test_secret_spot() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	var before := PlayerProfile.xp
+	m.secrets[0].interactable.interact(player)
+	check(PlayerProfile.secrets.size() == 1 and PlayerProfile.xp > before, "Fotografiar una cigarra pintada da XP")
+	m.secrets[0].interactable.interact(player)
+	check(PlayerProfile.secrets.size() == 1, "No se cuenta dos veces")
+	for s in m.secrets:
+		s.interactable.interact(player)
+	check(PlayerProfile.has_achievement("cazador_cigarras"), "Las cinco dan «Cazador de cigarras»")
+
+
+func test_journal_panel() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	m.givers["obleas"].interactable.interact(player)
+	_press_key(KEY_J)
+	await frames(3)
+	check(world.escape_ui.journal.is_open, "J abre el registro de misiones")
+	var text := _all_text(world.escape_ui.journal._list)
+	check(text.to_lower().contains("misión principal") and text.to_lower().contains("misiones secundarias"), "Muestra la principal y las secundarias")
+	check(text.contains("Obleas a domicilio") and text.contains("En curso"), "La misión aceptada aparece en curso")
+	check(not text.contains("¡Raponazo!"), "Los eventos no se anuncian antes de pasar")
+	check(text.contains("Cigarras pintadas: 0 de 5"), "Cuenta las cigarras pintadas")
+	_press_key(KEY_J)
+	await frames(3)
+	check(not world.escape_ui.journal.is_open, "J lo cierra")
+	await seconds(0.4)
+	check(world.hud._quest_box.visible and world.hud._quest_title.text.contains("Obleas"), "El HUD muestra la secundaria que sigues")
+
+
+func test_cigarra_continue_with_quests() -> void:
+	GameSession.save_enabled = true
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	m.lucia.interactable.interact(player)
+	m.givers["fotos"].interactable.interact(player)
+	await place(world.points["catedral"], 0.0)
+	await frames(5)
+	m.evidence[1].interactable.interact(player)
+	m.save_progress()
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	GameSession.continue_game()
+	check(GameSession.chapter == "cigarra", "Continuar recuerda el capítulo 6")
+	await spawn_world()
+	m = _cm()
+	check(m.is_done("lucia") and m.is_done("senal_rovira"), "Se cargan los objetivos")
+	check(m.evidence[1].collected and not m.evidence[0].collected, "Las señales recogidas no vuelven a aparecer")
+	check(m.quests.state("fotos") == "active" and m.quests.count("fotos", "fotos") == 1, "Se carga el progreso de la secundaria")
+	check(m.photos_taken == ["catedral"] and not (m.photo_beacons["catedral"] as Beacon).active, "La foto tomada no se repite")
+	GameSession.save_enabled = false
+
+
+func test_quest_tracker_bad_data() -> void:
+	var t := QuestTracker.new()
+	t.from_data("basura")
+	check(t.active.is_empty(), "Datos que no son diccionario se ignoran")
+	t.from_data({"active": ["obleas", "no_existe", 7], "progress": {"obleas": {"entregas": 99, "raro": 3}}, "tracked": "x"})
+	check(t.active == ["obleas"], "Solo se cargan misiones que existen")
+	check(t.count("obleas", "entregas") == 3 and t.count("obleas", "raro") == 0, "Los contadores se limitan al total")
+	check(t.tracked == "obleas", "El seguimiento cae en una misión activa")
+
+
+func test_profile_without_2_0_keys() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("perfil", "version", PlayerProfile.VERSION)
+	cfg.set_value("perfil", "xp", 900)
+	cfg.set_value("perfil", "collectibles", ["parques", "garcia_rovira"])
+	cfg.set_value("perfil", "chapters", {"malentendido": {"done": true}})
+	cfg.save(TEST_PROFILE)
+	PlayerProfile.load_profile()
+	check(PlayerProfile.xp == 900 and PlayerProfile.collectibles.size() == 2, "Un perfil de la 0.6 se carga igual")
+	check(PlayerProfile.quests_done.is_empty() and PlayerProfile.secrets.is_empty(), "Sin misiones ni secretos de la 2.0")
+	cfg.set_value("perfil", "quests_done", ["fotos", "inventada"])
+	cfg.set_value("perfil", "secrets", "no es lista")
+	cfg.save(TEST_PROFILE)
+	PlayerProfile.load_profile()
+	check(PlayerProfile.quests_done == ["fotos"] and PlayerProfile.secrets.is_empty(), "Los datos raros se descartan")
+	PlayerProfile.reset()
+	DirAccess.remove_absolute(TEST_PROFILE)
+
+
+func test_objective_feedback_fx() -> void:
+	await spawn_chapter("cigarra")
+	var m := _cm()
+	var before := world.get_tree().get_nodes_in_group("fx").size()
+	m.lucia.interactable.interact(player)
+	await frames(2)
+	check(world.get_tree().get_nodes_in_group("fx").size() > before, "Cumplir un objetivo lanza un efecto de partículas")
+	check(world.hud._step_flash.visible, "Y el HUD muestra «Objetivo cumplido»")
+
+
+func _press_key(key: Key) -> void:
+	var ev := InputEventKey.new()
+	ev.keycode = key
+	ev.physical_keycode = key
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	var up := ev.duplicate() as InputEventKey
+	up.pressed = false
+	Input.parse_input_event(up)
+
+
+func _all_text(n: Node) -> String:
+	var out := ""
+	if n is Label:
+		out += (n as Label).text + "\n"
+	for c in n.get_children():
+		out += _all_text(c)
+	return out
+
+
+# ---------------------------------------------------------------------------
+# 2.2: vida de barrio
+# ---------------------------------------------------------------------------
+func _rm() -> RoboPlazaMission:
+	return world.mission as RoboPlazaMission
+
+
+func test_side_quest_hojas() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	var money := PlayerProfile.money
+	check(m.side_quest_ids() == ["hojas", "aguacero"], "El capítulo 2 tiene sus dos secundarias")
+	await frames(2)
+	check((m._markers[m.givers["hojas"]] as Label3D).text == "!", "Valentina tiene un «!»")
+	check(not m._markers.has(m.givers["aguacero"]) or not (m._markers[m.givers["aguacero"]] as Label3D).visible, "Don Pacho no anuncia el evento antes de tiempo")
+	for pg in m.pages:
+		check(not pg.visible and not pg.interactable.enabled, "Las hojas no se ven sin aceptar la misión")
+	m.givers["hojas"].interactable.interact(player)
+	check(m.quests.state("hojas") == "active", "Se acepta hablando con Valentina")
+	for pg in m.pages:
+		check(pg.visible and pg.interactable.enabled, "Aparece la hoja %s" % pg.id)
+	m.givers["hojas"].interactable.interact(player)
+	check(m.quests.state("hojas") == "active", "Sin las hojas no se puede entregar")
+	for pg in m.pages:
+		pg.interactable.interact(player)
+		pg.interactable.interact(player)
+	check(m.quests.count("hojas", "hojas") == 3, "Tres hojas, sin contar dos veces")
+	await frames(2)
+	check((m._markers[m.givers["hojas"]] as Label3D).text == "?", "Valentina muestra un «?»")
+	m.givers["hojas"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("hojas") and PlayerProfile.money >= money + 70, "Entregarlas paga la recompensa")
+
+
+func test_quest_pages_reachable() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.givers["hojas"].interactable.interact(player)
+	# La hoja de la plataforma y la de la caja se pisan; la del túnel queda a ras del suelo.
+	for i in 2:
+		var pos: Vector3 = m.pages[i].global_position
+		await place(pos + Vector3(0, 0.3, 0), 0.0)
+		await frames(20)
+		check(player.is_on_floor() and absf(player.global_position.y - pos.y) < 0.2,
+				"Se puede estar parado donde está la hoja %d (y=%.2f, hoja %.2f)" % [i, player.global_position.y, pos.y])
+	var tunnel: Vector3 = world.points["tunnel_inside"]
+	check(flat(m.pages[2].global_position - tunnel).length() < 0.5, "La tercera hoja está dentro del túnel")
+	for spec: Vector3 in m.BASKETS + [m.VALENTINA, m.PACHO]:
+		for r: Rect2 in world.points["footprints"]:
+			check(not r.grow(0.5).has_point(Vector2(spec.x, spec.z)), "Nada de la vida de barrio queda dentro de un edificio (%s)" % spec)
+
+
+func test_aguacero_event() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.aguacero_timer = 0.05
+	await frames(5)
+	check(m.aguacero_state == "", "Sin hablar con Doña Rosa no llueve")
+	m.rosa.interactable.interact(player)
+	await frames(5)
+	check(m.aguacero_state == "rain" and m.rain != null, "Se larga el aguacero")
+	check(m.quests.state("aguacero") == "active", "El evento aparece en el registro")
+	for b in m.baskets:
+		check(b.interactable.enabled, "La canasta %s se puede tapar" % b.id)
+	for b in m.baskets:
+		b.interactable.interact(player)
+	check(m.aguacero_state == "covered", "Las tres canastas quedan tapadas")
+	m.givers["aguacero"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("aguacero") and m.aguacero_state == "done", "Avisarle a Don Pacho termina el evento")
+	check(PlayerProfile.stat("events") >= 1.0, "Cuenta en las estadísticas de eventos")
+	m.rain_left = 0.05
+	await frames(5)
+	check(m.rain == null, "Al rato escampa")
+
+
+func test_aguacero_late_and_calm() -> void:
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.rosa.interactable.interact(player)
+	# Mientras sigues al ladrón no llueve.
+	m.steps_done.append("sospechoso")
+	m.aguacero_timer = 0.05
+	await frames(5)
+	check(m.aguacero_state == "", "No llueve mientras sigues al ladrón")
+	m.steps_done.erase("sospechoso")
+	await frames(5)
+	check(m.aguacero_state == "rain", "Llueve cuando ya no hay persecución")
+	m.baskets[0].interactable.interact(player)
+	m.aguacero_left = 0.05
+	await frames(5)
+	check(m.aguacero_state == "late" and m.quests.state("aguacero") == "available", "Si no alcanzas, el evento se pierde sin romper nada")
+	check(not m.baskets[1].interactable.enabled, "Las canastas ya no responden")
+	check(not PlayerProfile.is_quest_done("aguacero"), "Y no paga")
+
+
+func test_side_quest_pan() -> void:
+	await spawn_chapter("gran_huida")
+	var m := world.mission as GranHuidaMission
+	PlayerProfile.quests_done.assign(["hojas", "aguacero"])
+	var money := PlayerProfile.money
+	m.bread_customers["celador"].interactable.interact(player)
+	check(m.bread_delivered.is_empty(), "Sin la misión no se entrega nada")
+	m.givers["pan"].interactable.interact(player)
+	check(m.quests.state("pan") == "active", "Don Ricardo entrega la misión")
+	m.bread_customers["celador"].interactable.interact(player)
+	m.bread_customers["celador"].interactable.interact(player)
+	check(m.quests.count("pan", "entregas") == 1, "Una entrega por cliente")
+	m.bread_customers["taxista"].interactable.interact(player)
+	check(PlayerProfile.is_quest_done("pan"), "Dos entregas terminan la misión")
+	check(PlayerProfile.money >= money + 90 + 30, "Sin que te vean, paga la ñapa")
+	check(PlayerProfile.has_achievement("amigo_barrio"), "Las tres secundarias nuevas dan «Amigo del barrio»")
+	check(not PlayerProfile.has_achievement("buen_vecino"), "«Buen vecino» sigue siendo del Centro")
+	var stairs: Vector3 = world.points["mirador_stairs"]
+	check(flat(m.bread_customers["celador"].global_position - stairs).length() < 4.0, "El celador está al pie del mirador")
+
+
+func test_journal_other_chapters() -> void:
+	await spawn_chapter("robo_plaza")
+	_press_key(KEY_J)
+	await frames(3)
+	var text := _all_text(world.escape_ui.journal._list)
+	check(text.contains("Las hojas de Valentina"), "El registro del capítulo 2 muestra sus secundarias")
+	check(not text.contains("Obleas") and not text.contains("Cigarras pintadas"), "Y no las del Centro")
+	check(not text.contains("¡Aguacero!"), "El aguacero no se anuncia antes de pasar")
+	_press_key(KEY_J)
+	await frames(3)
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	await spawn_chapter("malentendido")
+	_press_key(KEY_J)
+	await frames(3)
+	text = _all_text(world.escape_ui.journal._list)
+	check(not text.to_lower().contains("misiones secundarias"), "El capítulo 1 no lista secundarias que no tiene")
+	_press_key(KEY_J)
+	await frames(3)
+
+
+func test_robo_continue_with_quests() -> void:
+	GameSession.save_enabled = true
+	await spawn_chapter("robo_plaza")
+	var m := _rm()
+	m.rosa.interactable.interact(player)
+	m.givers["hojas"].interactable.interact(player)
+	m.pages[1].interactable.interact(player)
+	m.aguacero_timer = 0.05
+	await frames(5)
+	check(m.aguacero_state == "rain", "Está lloviendo al guardar")
+	m.save_progress()
+	world.queue_free()
+	world = null
+	await get_tree().process_frame
+	GameSession.continue_game()
+	await spawn_world()
+	m = _rm()
+	check(m.quests.state("hojas") == "active" and m.quests.count("hojas", "hojas") == 1, "Se carga el progreso de las hojas")
+	check(m.pages[1].done and not m.pages[1].visible and m.pages[0].visible, "La hoja recogida no vuelve a aparecer")
+	check(m.aguacero_state == "" and m.quests.state("aguacero") == "available", "El aguacero a medias se cancela al cargar")
+	check(m.aguacero_timer > 3.0, "Y vuelve a empezar al rato (%.1f s)" % m.aguacero_timer)
+	GameSession.save_enabled = false

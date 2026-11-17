@@ -68,12 +68,24 @@ static func ring(parent: Node, pos: Vector3, color: Color) -> CPUParticles3D:
 	return p
 
 
+## Celebración al cumplir un objetivo o una misión: anillo dorado que sube y
+## un estallido de chispas de colores (2.0).
+static func celebrate(parent: Node, pos: Vector3, big: bool = false) -> void:
+	ring(parent, pos + Vector3(0, 0.1, 0), Color(1.0, 0.8, 0.3))
+	var colors := [Color(1.0, 0.82, 0.3), Color(0.37, 0.83, 0.65), Color(0.89, 0.28, 0.24)]
+	for i in (3 if big else 1):
+		var b := burst(parent, pos + Vector3(0, 1.4 + i * 0.3, 0), colors[i % colors.size()], 30 if big else 22, 1.4 if big else 1.0)
+		if b != null:
+			b.spread = 110.0
+
+
 static func reduced() -> bool:
 	return bool(Settings.get_value("interface", "reduce_motion"))
 
 
 static func _make(amount: int, lifetime: float) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
+	p.add_to_group("fx")
 	p.one_shot = true
 	p.explosiveness = 0.9
 	p.amount = amount

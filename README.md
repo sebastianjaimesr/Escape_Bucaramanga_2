@@ -2,7 +2,7 @@
 
 Aventura urbana en tercera persona inspirada en Bucaramanga, Santander (Colombia), hecha en **Godot 4.7**. Sebastián y sus tres amigos recorren la ciudad para aclarar un malentendido, y terminan destapando la red que está detrás de los robos del barrio, mientras la policía (ficticia) los busca.
 
-> Estado: **versión 0.6.0, aventura en cinco capítulos**: cuatro en la manzana de prueba y el final en Cabecera del Llano. El plan completo está en [DOCUMENTACION/PLAN_DE_DESARROLLO.md](DOCUMENTACION/PLAN_DE_DESARROLLO.md).
+> Estado: **versión 2.2.0, aventura en seis capítulos**: cuatro en la manzana de prueba, uno en Cabecera del Llano y uno en El Centro, con misiones secundarias en la manzana, Cabecera y el Centro, secretos y registro de misiones. El plan completo está en [DOCUMENTACION/PLAN_DE_DESARROLLO.md](DOCUMENTACION/PLAN_DE_DESARROLLO.md).
 > La versión 2D original está completa y jugable en [`clasico-2d/`](clasico-2d/).
 
 Los lugares están inspirados en Bucaramanga; no son reproducciones exactas. La policía y los nombres comerciales son ficticios.
@@ -18,15 +18,22 @@ Los lugares están inspirados en Bucaramanga; no son reproducciones exactas. La 
 | 3 | Sombras en el callejón | Noche | Infiltrarse en una bodega con vigilantes y cámaras |
 | 4 | Persecución urbana | Noche con lluvia | Escapar de la policía con un disfraz y llegar al refugio |
 | 5 | La gran huida | Madrugada | Terrazas de Cabecera, caja fuerte, drones, tirolesa y carrera al Puente de la Novena antes del amanecer |
+| 6 | La Cigarra | Tarde | El Centro: Parque Santander, García Rovira, Carrera 27 y Parque de las Cigarras; tres señales, un casillero y misiones secundarias |
 
-- **Progresión que se conserva:** 10 niveles, 6 habilidades, tienda, 16 logros, 15 postales escondidas con datos de Bucaramanga y estadísticas del jugador.
+- **Progresión que se conserva:** 10 niveles, 6 habilidades, tienda, 22 logros, 19 postales escondidas con datos de Bucaramanga y estadísticas del jugador.
 - **Búsqueda policial por niveles** (Tranquilo, Sospecha, Búsqueda, Persecución y Cerco) con refuerzos, **cámaras de seguridad**, **latas para distraer** y **disfraces**.
 - **Moverse por la ciudad:** correr, saltar, trepar muros bajos, deslizarse, rodar al caer, colgarse de una tirolesa y esconderse en los matorrales.
 - **Drones de vigilancia**, **cinemáticas cortas que se pueden saltar** y títulos al entrar a cada zona.
 - **Corazones y puntos de control** desde el capítulo 2, y recompensas al terminar cada capítulo.
-- 89 pruebas automáticas.
+- **Misiones secundarias** con personajes que las entregan en el Centro, la manzana y Cabecera; eventos inesperados (¡Raponazo!, ¡Aguacero!), 5 cigarras pintadas escondidas y un **registro de misiones** (tecla J).
+- 110 pruebas automáticas.
 
-Diseño de la aventura: [DOCUMENTACION/AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md). Capítulo 5: [DOCUMENTACION/GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md).
+Diseño de la aventura: [DOCUMENTACION/AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md). Capítulo 5: [DOCUMENTACION/GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md). Versión 2.0: [DOCUMENTACION/VERSION_2_0.md](DOCUMENTACION/VERSION_2_0.md). Versión 2.2: [DOCUMENTACION/VERSION_2_2.md](DOCUMENTACION/VERSION_2_2.md).
+
+![Parque Santander y la Catedral](DOCUMENTACION/capturas/v2.0/santander_catedral.jpg)
+![García Rovira y la Capilla](DOCUMENTACION/capturas/v2.0/garcia_rovira_capilla.jpg)
+![Don Aníbal con una misión](DOCUMENTACION/capturas/v2.0/don_anibal_mision.jpg)
+![Registro de misiones](DOCUMENTACION/capturas/v2.0/registro_misiones.jpg)
 
 ![Parque de las Palmas](DOCUMENTACION/capturas/v0.6/parque_palmas.jpg)
 ![Terrazas de Cabecera](DOCUMENTACION/capturas/v0.6/terrazas.jpg)
@@ -81,6 +88,8 @@ Detalle y resultados en [DOCUMENTACION/PRUEBAS.md](DOCUMENTACION/PRUEBAS.md).
 
 | Documento | Contenido |
 |---|---|
+| [VERSION_2_2.md](DOCUMENTACION/VERSION_2_2.md) | Misiones secundarias en la manzana y Cabecera, evento «¡Aguacero!» (2.2) |
+| [VERSION_2_0.md](DOCUMENTACION/VERSION_2_0.md) | El Centro, capítulo 6, misiones secundarias, secretos y registro (2.0) |
 | [GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md) | Capítulo 5, Cabecera, parkour, drones y cinemáticas (0.6) |
 | [AVENTURA_URBANA.md](DOCUMENTACION/AVENTURA_URBANA.md) | Campaña, sistemas nuevos y progresión (0.5) |
 | [AUDITORIA_INICIAL.md](DOCUMENTACION/AUDITORIA_INICIAL.md) | Auditoría del juego 2D y elección del motor |

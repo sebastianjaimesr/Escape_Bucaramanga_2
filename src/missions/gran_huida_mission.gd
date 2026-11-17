@@ -15,6 +15,10 @@ extends Mission
 ##      la tirolesa baja al parque y hay que cruzar el puente antes de que salga
 ##      el sol (DAWN_SECONDS). El cielo se aclara a medida que avanza.
 ##
+## Vida de barrio (2.2): «Pan de madrugada». Don Ricardo, el panadero, pide
+## llevar dos pedidos (el celador del mirador y la taxista de la 33); hay bono
+## si ningún policía te ve mientras repartes.
+##
 ## Cinemáticas: al empezar (la ciudad dormida), al robar el contrato (los
 ## drones despegan) y al llegar al puente (la transmisión en vivo).
 
@@ -37,6 +41,10 @@ var cinematic: CinematicDirector
 var dawn_left := DAWN_SECONDS
 var dawn_running := false
 var alarm_raised := false
+## Pan de madrugada: a quién ya se le entregó ("celador", "taxista").
+var bread_delivered: Array[String] = []
+var bread_seen := false
+var bread_customers: Dictionary = {}   ## "celador"/"taxista" -> Civilian
 
 var _roof_time := -1.0
 var _roof_clean := true
@@ -51,6 +59,7 @@ func _init(w: PrototypeWorld) -> void:
 	chapter_id = "gran_huida"
 	max_lives = int(Chapters.get_chapter(chapter_id).get("lives", 3))
 	lives = max_lives
+	quests = QuestTracker.new()
 	routes = [
 		[Vector3(-9.0, 0.15, -28.0), Vector3(-9.0, 0.15, 28.0)],
 		[Vector3(29.0, 0.15, -28.0), Vector3(29.0, 0.15, 28.0)],
@@ -123,6 +132,7 @@ func _setup() -> void:
 	# Amigos y la furgoneta de la emisora al otro lado del puente.
 	_spawn_friends(func(_p: PlayerController) -> void:
 		EventBus.notify.emit("Gordo: «¡Venga, venga! ¡Lucía ya va a salir al aire!»"), "Hablar con tus amigos")
+	_setup_bread()
 	# Un dron vigila las terrazas desde el principio.
 	var roof_route := PackedVector3Array()
 	for i in [0, 1, 2, 3, 4, 3, 2, 1]:
@@ -360,6 +370,9 @@ func _on_finish() -> void:
 
 
 func _tick(delta: float) -> void:
+	if quests.state("pan") == "active" and not bread_seen and alert_level() >= 1:
+		bread_seen = true
+		EventBus.notify.emit("Te vieron con la bolsa del pan. Ya no hay ñapa por sigilo, pero los pedidos siguen esperando.")
 	if _roof_time >= 0.0:
 		_roof_time += delta
 		# Bajar a la calle (o a un callejón) anula el récord de las terrazas.
@@ -422,6 +435,8 @@ func to_save() -> Dictionary:
 	var d := super()
 	d["dawn_left"] = dawn_left
 	d["alarm"] = alarm_raised
+	d["bread"] = bread_delivered.duplicate()
+	d["bread_seen"] = bread_seen
 	return d
 
 
@@ -430,6 +445,13 @@ func apply_save(data: Dictionary) -> void:
 		return
 	super(data)
 	dawn_left = clampf(float(data.get("dawn_left", DAWN_SECONDS)), 20.0, DAWN_SECONDS)
+	bread_delivered.clear()
+	var bread: Variant = data.get("bread", [])
+	if bread is Array and quests.state("pan") == "active":
+		for v: Variant in bread:
+			if str(v) in ["celador", "taxista"] and not str(v) in bread_delivered:
+				bread_delivered.append(str(v))
+	bread_seen = bool(data.get("bread_seen", false))
 	if is_done("caja"):
 		safe.set_open_instant()
 		alarm_raised = true
@@ -457,3 +479,52 @@ func apply_save(data: Dictionary) -> void:
 	world.camera_rig.yaw = yaw
 	world.camera_rig.snap()
 	_update_beacons()
+
+
+# ---------------------------------------------------------------------------
+# Vida de barrio: pan de madrugada
+# ---------------------------------------------------------------------------
+func _setup_bread() -> void:
+	givers["pan"] = _npc({"skin": Color(0.66, 0.48, 0.36), "shirt": Color(0.96, 0.95, 0.92), "pants": Color(0.25, 0.25, 0.28),
+			"hair_style": "bald", "cap": Color(0.96, 0.96, 0.96), "sleeves": true}, "Don Ricardo", Vector3(-47.5, CabeceraBuilder.G, 29.5),
+			PI * 0.6, func(_p: PlayerController) -> void: _talk_baker(), "Hablar con Don Ricardo")
+	var stairs: Vector3 = points["mirador_stairs"]
+	bread_customers["celador"] = _npc({"skin": Color(0.52, 0.38, 0.28), "shirt": Color(0.2, 0.25, 0.35), "pants": Color(0.15, 0.15, 0.2),
+			"hair_style": "short", "cap": Color(0.15, 0.18, 0.3)}, "Don Wilson, el celador", stairs + Vector3(2.4, 0, 0.6), -PI * 0.5,
+			func(_p: PlayerController) -> void: _deliver_bread("celador"), "Hablar con Don Wilson")
+	bread_customers["taxista"] = _npc({"skin": Color(0.76, 0.58, 0.46), "shirt": Color(0.95, 0.8, 0.1), "pants": Color(0.2, 0.2, 0.28),
+			"hair_style": "long", "hair": Color(0.25, 0.15, 0.08)}, "Doña Nubia, la taxista", Vector3(-9.8, CabeceraBuilder.G, 10.0), -PI * 0.5,
+			func(_p: PlayerController) -> void: _deliver_bread("taxista"), "Hablar con Doña Nubia")
+
+
+func _talk_baker() -> void:
+	match quests.state("pan"):
+		"available":
+			EventBus.notify.emit("Don Ricardo: «¿Usted madrugó o no ha dormido? Hágame un favor: el celador del mirador y la taxista de la 33 están esperando su pan.»")
+			bread_seen = false
+			quests.start("pan")
+		"active":
+			EventBus.notify.emit("Don Ricardo: «Van %d de 2. Ojo con la policía, que a esta hora todo el que corre es sospechoso.»" % bread_delivered.size())
+		_:
+			EventBus.notify.emit("Don Ricardo: «El pan de las cuatro es el mejor. Vuelva cuando quiera.»")
+
+
+func _deliver_bread(who: String) -> void:
+	var c: Civilian = bread_customers[who]
+	if quests.state("pan") != "active":
+		var idle := {"celador": "Don Wilson: «Shhh… ¿oyó eso? Ah, no, es el viento.»",
+				"taxista": "Doña Nubia: «Si va para el puente, mijo, a esta hora no le cobro. Mentiras, sí le cobro.»"}
+		EventBus.notify.emit(idle[who])
+		return
+	if who in bread_delivered:
+		EventBus.notify.emit("%s ya tiene su pan." % c.display_name.split(",")[0])
+		return
+	bread_delivered.append(who)
+	quests.advance("pan", "entregas")
+	Fx.burst(world, c.global_position + Vector3(0, 1.4, 0), Color(1.0, 0.8, 0.45), 18)
+	EventBus.notify.emit({"celador": "Don Wilson: «¡Pan calientico! Con esto aguanto hasta el cambio de turno.»",
+			"taxista": "Doña Nubia: «Ay, qué belleza. Dígale a Ricardo que mañana le pago.»"}[who])
+	if bread_delivered.size() >= 2:
+		if not bread_seen:
+			quests.advance("pan", "sigilo")
+		quests.finish("pan")
