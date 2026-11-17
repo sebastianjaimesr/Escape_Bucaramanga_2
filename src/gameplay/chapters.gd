@@ -173,6 +173,7 @@ const ACHIEVEMENTS := {
 	# --- 2.0 ---
 	"la_cigarra": {"name": "La Cigarra", "text": "Termina el capítulo 6.", "xp": 200},
 	"buen_vecino": {"name": "Buen vecino", "text": "Termina todas las misiones secundarias del Centro.", "xp": 300},
+	"amigo_barrio": {"name": "Amigo del barrio", "text": "Termina las misiones secundarias de la manzana y de Cabecera.", "xp": 250},
 	"cazador_cigarras": {"name": "Cazador de cigarras", "text": "Encuentra las 5 cigarras pintadas escondidas en el Centro.", "xp": 250},
 	"postales_todas": {"name": "Guía de la ciudad", "text": "Encuentra todas las postales (19).", "xp": 300},
 	"descifrador": {"name": "Descifrador", "text": "Abre el casillero de La Cigarra sin equivocarte ni pedir pistas.", "xp": 150},

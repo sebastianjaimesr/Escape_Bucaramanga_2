@@ -3,8 +3,8 @@ extends ModalPanel
 ## Registro de misiones (J): la misión principal del capítulo con sus
 ## objetivos, las misiones secundarias del distrito (disponibles, en curso y
 ## terminadas, con su progreso y su recompensa) y lo que falta por descubrir
-## (postales y cigarras pintadas). Funciona en todos los capítulos; las
-## secundarias solo existen en el Centro (CentroMission).
+## (postales y, en el Centro, cigarras pintadas). Funciona en todos los
+## capítulos; muestra las secundarias del capítulo que se está jugando.
 
 var mission: Mission
 var _list: VBoxContainer
@@ -55,9 +55,9 @@ func refresh() -> void:
 		else:
 			mcol.add_child(_row("lock", Color(UiStyle.TEXT_DIM, 0.6), "Todavía no lo sabes…", Color(UiStyle.TEXT_DIM, 0.6)))
 	var tracker: QuestTracker = mission.get("quests") as QuestTracker
-	if tracker != null:
+	if tracker != null and not mission.side_quest_ids().is_empty():
 		_section("Misiones secundarias")
-		for qid: String in SideQuests.LIST:
+		for qid: String in mission.side_quest_ids():
 			var data: Dictionary = SideQuests.LIST[qid]
 			var st := tracker.state(qid)
 			# Los eventos solo aparecen cuando pasan.
@@ -72,7 +72,7 @@ func refresh() -> void:
 	extra.add_child(ecol)
 	ecol.add_child(_row("postcard", UiStyle.ACCENT, "Postales de Bucaramanga: %d de %d" % [PlayerProfile.collectibles.size(),
 			Chapters.COLLECTIBLES.size()], UiStyle.TEXT))
-	if tracker != null:
+	if mission.chapter_id == "cigarra":
 		var found := 0
 		for sid: String in SideQuests.SECRETS:
 			if PlayerProfile.secrets.has(sid):

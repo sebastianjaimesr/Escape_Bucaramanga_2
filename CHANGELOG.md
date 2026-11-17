@@ -1,6 +1,6 @@
 # Cambios
 
-## 2.1.0 — Mejoras gráficas (17 de noviembre de 2026)
+## 2.3.0 — Mejoras gráficas (17 de noviembre de 2026)
 
 - Cielo nuevo hecho con un shader propio: nubes, sol con halo y estrellas de noche; se encapota con la lluvia y acompaña el amanecer del capítulo 5.
 - Texturas procedurales nuevas con relieve: pasto con briznas, follaje de hojas en árboles y setos, corteza, teja de barro, cantera y tablas de madera. El pasto y el asfalto tienen manchas grandes para que no se note la repetición.
@@ -9,6 +9,17 @@
 - Halos de luz alrededor de los faroles de noche.
 - Las texturas generadas se guardan en el equipo: desde la segunda partida el mapa carga más rápido que antes (útil en celulares).
 - Sin cambios en la historia, los controles ni las partidas guardadas.
+
+## 2.2.0 — Vida de barrio (17 de noviembre de 2026)
+
+Detalle: [DOCUMENTACION/VERSION_2_2.md](DOCUMENTACION/VERSION_2_2.md).
+
+- Las misiones secundarias pasan a la clase base `Mission`: cualquier capítulo puede tenerlas, y el registro (J) muestra las del capítulo que juegas.
+- Capítulo 2: «Las hojas de Valentina» (tres hojas en la plataforma, la caja alta y el túnel) y el evento «¡Aguacero!» (cielo gris, lluvia y 45 s para tapar las canastas de Don Pacho).
+- Capítulo 5: «Pan de madrugada» con Don Ricardo, con bono si la policía no te ve.
+- Logro nuevo «Amigo del barrio» (22 en total).
+- El «?» aparece también cuando solo falta volver con quien te dio la misión.
+- 110 pruebas automáticas (7 nuevas).
 
 ## 2.0.0 — El Centro (17 de noviembre de 2026)
 
