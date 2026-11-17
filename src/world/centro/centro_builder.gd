@@ -60,12 +60,13 @@ func build() -> Dictionary:
 	_comercio_27()
 	_parque_cigarras()
 	_c_street_props()
+	_horizon()
 	_build_windows()
 	_flush_batches()
 	_build_bounds()
 	# Esquina suroriental del Parque Santander, mirando hacia la estatua.
-	points["spawn"] = Vector3(-9.6, G, -6.4)
-	points["spawn_yaw"] = deg_to_rad(38.0)
+	points["spawn"] = Vector3(-11.4, G, -6.2)
+	points["spawn_yaw"] = deg_to_rad(22.0)
 	points["trees"] = _tree_count
 	points["reinforcement_entries"] = [Vector3(0.0, 0.0, -57.0), Vector3(0.0, 0.0, 57.0), Vector3(57.0, 0.0, 0.0), Vector3(-57.0, 0.0, 0.0)]
 	points["sidewalk_route"] = PackedVector3Array([
@@ -603,6 +604,33 @@ func _parque_cigarras() -> void:
 			"aabb": AABB(Vector3(r.position.x, -1, r.position.y), Vector3(r.size.x, 8, r.size.y))})
 
 
+## Cierra el borde del parque (seto y árboles) y llena el horizonte con
+## edificios fuera del área jugable (sin colisión), para que la ciudad siga.
+func _horizon() -> void:
+	for i in 12:
+		var t := 10.0 + i * 4.2
+		add_box(Vector3(1.4, 1.6, 4.2), Vector3(C_HALF - 0.8, G + 0.8, t), "hedge")
+		add_box(Vector3(4.2, 1.6, 1.4), Vector3(t, G + 0.8, C_HALF - 0.8), "hedge")
+		if i % 2 == 0:
+			_tree(Vector3(C_HALF - 2.2, G, t + 1.0))
+			_tree(Vector3(t + 2.0, G, C_HALF - 2.2))
+			_tree_count += 2
+	for side in 4:
+		var along := -C_HALF - 10.0
+		while along < C_HALF + 10.0:
+			var w := _rng.randf_range(8.0, 16.0)
+			var h := _rng.randf_range(9.0, 26.0)
+			var d := _rng.randf_range(8.0, 14.0)
+			var off := C_HALF + 4.0 + d * 0.5
+			var pos := Vector3(along + w * 0.5, G + h * 0.5, off) if side < 2 else Vector3(off, G + h * 0.5, along + w * 0.5)
+			if side % 2 == 1:
+				pos = Vector3(pos.x, pos.y, -pos.z) if side < 2 else Vector3(-pos.x, pos.y, pos.z)
+			var size := Vector3(w, h, d) if side < 2 else Vector3(d, h, w)
+			add_box(size, pos, "facade_%d" % _rng.randi_range(0, MaterialLibrary.FACADE_COLORS.size() - 1), false)
+			add_box(size + Vector3(0.3, 0.3, 0.3) * Vector3(1, 0, 1) + Vector3(0, 0.3, 0), pos + Vector3(0, h * 0.5, 0), "concrete", false)
+			along += w + _rng.randf_range(0.0, 3.0)
+
+
 func _near_path(p: Vector3, pts: Array, dist: float) -> bool:
 	for i in pts.size() - 1:
 		var a: Vector3 = pts[i]
@@ -620,7 +648,7 @@ func _c_street_props() -> void:
 	var props := PrototypeProps.new(self)
 	var z := -C_HALF + 6.0
 	while z < C_HALF - 4.0:
-		if absf(z) > CALLE + 4.0:
+		if absf(z) > CALLE + 6.0:
 			_lamp(Vector3(-AVE - 0.8, G, z), Vector3(1, 0, 0))
 			_lamp(Vector3(AVE + 0.8, G, z), Vector3(-1, 0, 0))
 		z += 15.0

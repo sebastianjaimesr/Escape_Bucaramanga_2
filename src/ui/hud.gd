@@ -393,7 +393,7 @@ func _build_top_right() -> void:
 	col.add_theme_constant_override("separation", 12)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.alignment = BoxContainer.ALIGNMENT_BEGIN
-	UiStyle.place(col, Vector4(1, 0, 1, 0), Vector4(-20 - Minimap.SIZE - 40, 20, -20, 300))
+	UiStyle.place(col, Vector4(1, 0, 1, 0), Vector4(-20 - 300, 20, -20, 300))
 	_root.add_child(col)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
@@ -518,11 +518,11 @@ func _refresh_hint() -> void:
 		return
 	var move := "%s%s%s%s" % [InputConfig.key_name("move_forward"), InputConfig.key_name("move_left"),
 			InputConfig.key_name("move_back"), InputConfig.key_name("move_right")]
-	_hint.text = "%s  mover · %s  correr · %s  saltar / trepar\n%s  agacharse / deslizarse (corriendo) · %s  interactuar\n%s  lanzar lata · %s  disfraz · %s  inventario · %s  pista · Esc  pausa" % [
+	_hint.text = "%s  mover · %s  correr · %s  saltar / trepar\n%s  agacharse / deslizarse (corriendo) · %s  interactuar\n%s  lanzar lata · %s  disfraz · %s  inventario · %s  misiones · %s  pista · Esc  pausa" % [
 		move, InputConfig.key_name("run"), InputConfig.key_name("jump"),
 		InputConfig.key_name("crouch"), InputConfig.key_name("interact"),
 		InputConfig.key_name("throw"), InputConfig.key_name("gadget"),
-		InputConfig.key_name("inventory"), InputConfig.key_name("hint")]
+		InputConfig.key_name("inventory"), InputConfig.key_name("journal"), InputConfig.key_name("hint")]
 
 
 func _refresh_steps(animate: bool) -> void:

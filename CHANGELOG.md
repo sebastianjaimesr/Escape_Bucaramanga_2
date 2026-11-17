@@ -1,5 +1,28 @@
 # Cambios
 
+## 2.0.0 — El Centro (17 de noviembre de 2026)
+
+Detalle: [DOCUMENTACION/VERSION_2_0.md](DOCUMENTACION/VERSION_2_0.md).
+
+### Campaña y mundo
+- Mapa nuevo **El Centro** (120 × 120 m): Parque Santander con la Catedral, Parque García Rovira con la Capilla de los Dolores y la Casa de Bolívar, el comercio de la Carrera 27 con pasaje y escalera de incendios, y el Parque de las Cigarras con quebrada, puente y piedras.
+- **Capítulo 6 · La Cigarra**: tres señales con acertijos, casillero con clave, patrulla del sargento Ordóñez y cinemáticas de entrada y final.
+
+### Misiones y secretos
+- 3 misiones secundarias con personajes que las entregan (Obleas a domicilio, Postales vivas, ¿Dónde está Firulais?) y el evento inesperado ¡Raponazo!
+- Marcadores «!» y «?» sobre quien entrega misiones; la secundaria seguida aparece en el HUD.
+- 5 cigarras pintadas escondidas, 4 postales nuevas (19) y 5 logros nuevos (21). Las postales del García Rovira y la Casa de Bolívar pasan al Centro.
+
+### Interfaz y personajes
+- **Registro de misiones** (J o botón de libreta), en todos los capítulos; tecla reasignable.
+- Aviso «✓ Objetivo cumplido» con partículas y celebración al ganar.
+- Caras con cejas y boca; personajes nuevos, incluido el perro Firulais.
+- Corregido: el botón de pausa se salía de la pantalla a 1280 × 720.
+
+### Guardado y pruebas
+- El perfil guarda misiones secundarias y secretos; los perfiles de la 0.6 se cargan igual.
+- 103 pruebas automáticas (14 nuevas).
+
 ## 0.6.0 — La gran huida (9 de noviembre de 2026)
 
 Detalle: [DOCUMENTACION/GRAN_HUIDA.md](DOCUMENTACION/GRAN_HUIDA.md).
