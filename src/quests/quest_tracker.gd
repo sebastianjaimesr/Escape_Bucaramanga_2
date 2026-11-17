@@ -62,6 +62,27 @@ func ready_to_finish(id: String) -> bool:
 	return true
 
 
+## Se deja sin terminar (un evento que se perdió): vuelve a «available».
+func abandon(id: String) -> void:
+	if not id in active:
+		return
+	active.erase(id)
+	progress.erase(id)
+	if tracked == id:
+		tracked = active[0] if not active.is_empty() else ""
+	updated.emit(id)
+
+
+## Solo falta volver con quien la dio (o ya se puede terminar): «?».
+func ready_to_return(id: String) -> bool:
+	if state(id) != "active":
+		return false
+	for o: Dictionary in SideQuests.LIST.get(id, {}).get("objectives", []):
+		if not o.get("optional", false) and not o.get("return", false) and not is_objective_done(id, o["id"]):
+			return false
+	return true
+
+
 ## Termina y cobra (más el bono si se cumplieron los opcionales).
 func finish(id: String) -> Dictionary:
 	if state(id) != "active" or not ready_to_finish(id):

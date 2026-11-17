@@ -261,8 +261,10 @@ func complete_quest(id: String) -> Dictionary:
 	add_xp(int(reward.get("xp", 0)), "Misión secundaria")
 	add_stats({"side_quests": 1})
 	quest_completed.emit(id)
-	if quests_done.size() >= SideQuests.LIST.size():
+	if SideQuests.all_done(["cigarra"], quests_done):
 		unlock_achievement("buen_vecino")
+	if SideQuests.all_done(["robo_plaza", "gran_huida"], quests_done):
+		unlock_achievement("amigo_barrio")
 	changed.emit()
 	save()
 	return reward

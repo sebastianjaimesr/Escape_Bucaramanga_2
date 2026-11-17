@@ -1,5 +1,16 @@
 # Cambios
 
+## 2.2.0 — Vida de barrio (17 de noviembre de 2026)
+
+Detalle: [DOCUMENTACION/VERSION_2_2.md](DOCUMENTACION/VERSION_2_2.md).
+
+- Las misiones secundarias pasan a la clase base `Mission`: cualquier capítulo puede tenerlas, y el registro (J) muestra las del capítulo que juegas.
+- Capítulo 2: «Las hojas de Valentina» (tres hojas en la plataforma, la caja alta y el túnel) y el evento «¡Aguacero!» (cielo gris, lluvia y 45 s para tapar las canastas de Don Pacho).
+- Capítulo 5: «Pan de madrugada» con Don Ricardo, con bono si la policía no te ve.
+- Logro nuevo «Amigo del barrio» (22 en total).
+- El «?» aparece también cuando solo falta volver con quien te dio la misión.
+- 110 pruebas automáticas (7 nuevas).
+
 ## 2.0.0 — El Centro (17 de noviembre de 2026)
 
 Detalle: [DOCUMENTACION/VERSION_2_0.md](DOCUMENTACION/VERSION_2_0.md).
