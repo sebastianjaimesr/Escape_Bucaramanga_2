@@ -35,6 +35,17 @@ const ITEMS := {
 		"text": "Letra de Pabón: «La clave de siempre: el año en que se fundó la ciudad. Lo dice la placa del monumento del parque.»"},
 	"contrato": {"name": "Contrato de Inversiones La Meseta", "icon": "envelope",
 		"text": "El contrato que une a «El Búho» con Aurelio Pabón y la red de la bodega. Con esto, Lucía puede contarlo todo."},
+	# --- Capítulo 6 (2.0) ---
+	"mensaje_cigarra": {"name": "Mensaje de La Cigarra", "icon": "doc",
+		"text": "«Casillero 27 del Parque de las Cigarras. La clave son cuatro números que dejé pintados junto a mis cigarras: una en el Parque Santander, otra en el García Rovira y otra en la 27. — La Cigarra»"},
+	"senal_santander": {"name": "Señal del Parque Santander", "icon": "photo",
+		"text": "Una cigarra pintada en el pedestal de la estatua. Debajo: «1.º — ¿Cuántas alas tiene una cigarra?»"},
+	"senal_rovira": {"name": "Señal del García Rovira", "icon": "photo",
+		"text": "Una cigarra pintada en una banca de la plaza. Debajo: «2.º — ¿Cuántos robos cometió Sebastián?»"},
+	"senal_27": {"name": "Señal de la 27", "icon": "photo",
+		"text": "Una cigarra pintada en el techo del paradero. Debajo: «3.º y 4.º — El número de esta carrera.»"},
+	"grabacion": {"name": "Grabación de La Cigarra", "icon": "usb",
+		"text": "Una memoria con una grabación: el «amigo en la estación» del libro de cuentas recibiendo el pago de Pabón. Se le oye decir su nombre: sargento Ordóñez."},
 }
 
 const STEPS := {
@@ -68,6 +79,38 @@ const STEPS := {
 			"El puente está al sur del parque, sobre la cañada. Lucía transmite al otro lado.",
 			"Baja del mirador, cruza el parque hacia el sur y la calle sur hasta el puente.",
 			"Evita la patrulla del cruce de la calle sur: entra al puente por el andén del parque.",
+		]},
+	],
+	"cigarra": [
+		{"id": "lucia", "title": "Habla con Lucía en el Parque Santander", "requires": [], "hints": [
+			"Lucía te espera junto a la estatua, en el centro del Parque Santander.",
+			"El parque está al noroeste del cruce de la Carrera 27 con la Calle 36. Sigue los senderos hacia la estatua.",
+			"Es la mujer de chaqueta morada al pie del pedestal. Acércate y pulsa Interactuar.",
+		]},
+		{"id": "senal_santander", "title": "Encuentra la señal de La Cigarra en el Parque Santander", "requires": ["lucia"], "hints": [
+			"La Cigarra deja sus señales en lugares que todo el mundo ve pero nadie mira.",
+			"Mira alrededor del pedestal de la estatua del general Santander.",
+			"Rodea el pedestal: la cigarra pintada brilla en el costado norte.",
+		]},
+		{"id": "senal_rovira", "title": "Encuentra la señal en el Parque García Rovira", "requires": ["lucia"], "hints": [
+			"El Parque García Rovira está al sur de la Calle 36, del lado occidental de la 27.",
+			"Busca entre las bancas que rodean la estatua de la plaza.",
+			"Está en la banca del lado este de la estatua.",
+		]},
+		{"id": "senal_27", "title": "Encuentra la señal en la Carrera 27", "requires": ["lucia"], "hints": [
+			"Sobre la 27, al sur de la Calle 36, hay un paradero de bus.",
+			"La señal está en el techo del paradero. Hay que subir.",
+			"Sube a la jardinera, luego a la caja de luz verde y de ahí salta al techo del paradero.",
+		]},
+		{"id": "casillero", "title": "Abre el casillero 27 en el Parque de las Cigarras", "requires": ["senal_santander", "senal_rovira", "senal_27"], "checkpoint": true, "hints": [
+			"El kiosco de los casilleros está al fondo del Parque de las Cigarras, en la esquina sureste. La clave son los cuatro números de las señales.",
+			"Revisa las señales en el inventario: alas de una cigarra, robos de Sebastián y el número de la carrera.",
+			"La clave es 4027.",
+		]},
+		{"id": "entrega", "title": "Lleva la grabación a Lucía en el Parque García Rovira", "requires": ["casillero"], "hints": [
+			"La patrulla de Ordóñez llegó al Centro: escóndete en los matorrales si te ven.",
+			"Sal del parque de las Cigarras por el puente de madera o por las piedras de la quebrada y cruza la 27 hacia el oeste.",
+			"Lucía y tus amigos esperan al lado de la estatua del García Rovira (sigue la columna de luz).",
 		]},
 	],
 	"robo_plaza": [

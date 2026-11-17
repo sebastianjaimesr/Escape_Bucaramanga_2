@@ -16,6 +16,8 @@ signal level_up(level: int)
 signal money_changed(money: int)
 signal achievement_unlocked(id: String)
 signal collectible_found(id: String, count: int)
+signal quest_completed(id: String)
+signal secret_found(id: String, count: int)
 signal changed
 
 const VERSION := 1
@@ -33,6 +35,10 @@ var skills: Array[String] = []
 var items: Array[String] = []
 var achievements: Array[String] = []
 var collectibles: Array[String] = []
+## Misiones secundarias terminadas (2.0) y secretos descubiertos (cigarras pintadas).
+## Son claves nuevas del perfil: los perfiles anteriores las cargan vacías.
+var quests_done: Array[String] = []
+var secrets: Array[String] = []
 ## id del capítulo -> {"done": bool, "rank": String, "time": float}
 var chapters: Dictionary = {}
 ## Estadísticas acumuladas (pantalla «Estadísticas» del perfil). Ver STAT_KEYS.
@@ -51,6 +57,8 @@ const STAT_KEYS := {
 	"ziplines": "Viajes en tirolesa",
 	"drone_alarms": "Alarmas de dron",
 	"distance": "Metros recorridos",
+	"side_quests": "Misiones secundarias",
+	"events": "Eventos resueltos",
 }
 
 
@@ -233,8 +241,47 @@ func find_collectible(id: String) -> bool:
 		unlock_achievement("postales_5")
 	if collectibles.size() >= 10:
 		unlock_achievement("postales_10")
-	if collectibles.size() >= Chapters.COLLECTIBLES.size():
+	if collectibles.size() >= 15:
 		unlock_achievement("postales_15")
+	if collectibles.size() >= Chapters.COLLECTIBLES.size():
+		unlock_achievement("postales_todas")
+	changed.emit()
+	save()
+	return true
+
+
+## Misión secundaria terminada: da su recompensa una sola vez.
+func complete_quest(id: String) -> Dictionary:
+	if is_quest_done(id) or not SideQuests.LIST.has(id):
+		return {}
+	quests_done.append(id)
+	var reward: Dictionary = SideQuests.LIST[id].get("reward", {})
+	add_money(int(reward.get("money", 0)))
+	change_reputation(int(reward.get("rep", 0)))
+	add_xp(int(reward.get("xp", 0)), "Misión secundaria")
+	add_stats({"side_quests": 1})
+	quest_completed.emit(id)
+	if quests_done.size() >= SideQuests.LIST.size():
+		unlock_achievement("buen_vecino")
+	changed.emit()
+	save()
+	return reward
+
+
+func is_quest_done(id: String) -> bool:
+	return id in quests_done
+
+
+## Secreto descubierto (una cigarra pintada): 75 XP y $15.
+func find_secret(id: String) -> bool:
+	if id in secrets or not id in SideQuests.SECRETS:
+		return false
+	secrets.append(id)
+	add_money(15)
+	add_xp(75, "Secreto")
+	secret_found.emit(id, secrets.size())
+	if secrets.size() >= SideQuests.SECRETS.size():
+		unlock_achievement("cazador_cigarras")
 	changed.emit()
 	save()
 	return true
@@ -294,7 +341,7 @@ func complete_chapter(id: String, stats: Dictionary) -> Dictionary:
 	add_money(cash)
 	add_xp(gained, "Capítulo")
 	var chapter_achievement := {"malentendido": "caso_cerrado", "robo_plaza": "natillera",
-			"callejon": "sombra_noche", "persecucion": "a_salvo", "gran_huida": "gran_huida"}
+			"callejon": "sombra_noche", "persecucion": "a_salvo", "gran_huida": "gran_huida", "cigarra": "la_cigarra"}
 	if chapter_achievement.has(id):
 		unlock_achievement(chapter_achievement[id])
 	if not bool(stats.get("chased", true)):
@@ -360,6 +407,8 @@ func reset() -> void:
 	items.clear()
 	achievements.clear()
 	collectibles.clear()
+	quests_done.clear()
+	secrets.clear()
 	chapters.clear()
 	stats.clear()
 	changed.emit()
@@ -371,7 +420,7 @@ func save() -> bool:
 	var cfg := ConfigFile.new()
 	cfg.set_value("perfil", "version", VERSION)
 	for key: String in ["xp", "money", "reputation", "skill_points", "skills", "items",
-			"achievements", "collectibles", "chapters", "stats"]:
+			"achievements", "collectibles", "quests_done", "secrets", "chapters", "stats"]:
 		cfg.set_value("perfil", key, get(key))
 	var tmp := path + ".tmp"
 	if cfg.save(tmp) != OK:
@@ -403,6 +452,11 @@ func load_profile() -> void:
 	for c: Dictionary in Chapters.COLLECTIBLES:
 		known_collectibles[c["id"]] = true
 	_load_ids(collectibles, cfg.get_value("perfil", "collectibles", []), known_collectibles)
+	_load_ids(quests_done, cfg.get_value("perfil", "quests_done", []), SideQuests.LIST)
+	var known_secrets := {}
+	for id: String in SideQuests.SECRETS:
+		known_secrets[id] = true
+	_load_ids(secrets, cfg.get_value("perfil", "secrets", []), known_secrets)
 	var ch: Variant = cfg.get_value("perfil", "chapters", {})
 	if ch is Dictionary:
 		for k: Variant in ch:

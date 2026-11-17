@@ -87,10 +87,25 @@ const LIST := [
 			["Si cae de muy alto, ruede al caer, como los muchachos del parkour.", "Por la tirolesa del mirador se baja volando."],
 		],
 	},
+	{
+		"id": "cigarra", "number": 6, "title": "La Cigarra",
+		"win_title": "¡El amigo en la estación tiene nombre!",
+		"outro": "La grabación de La Cigarra, el vigilante arrepentido de la bodega, no dejaba dudas: el «amigo en la estación» era el sargento Ordóñez, el mismo que mandó buscar a Sebastián aquel primer día a las 17:42. La Fiscalía lo citó esa misma noche. En la última nota de La Cigarra quedaba una frase sin explicar: «Pabón no era el único que le pagaba».",
+		"place": "El Centro · Parque Santander", "map": "centro", "time": "tarde", "rain": false,
+		"xp": 1600, "money": 400, "lives": 3,
+		"summary": "El libro de cuentas hablaba de «un amigo en la estación». Alguien que firma «La Cigarra» tiene la prueba y la escondió en el Centro: sigue sus señales por los parques, abre su casillero y llévale la grabación a Lucía.",
+		"tags": ["Exploración", "Acertijo", "Misiones secundarias"],
+		"pedestrians": [
+			["¡Qué tarde tan bonita en el Centro!", "Dicen que en los parques aparecieron unas cigarras pintadas.", "Don Aníbal, el de las obleas, anda buscando quién le ayude."],
+			["La catedral es lo más bonito del Parque Santander.", "Una muchacha anda tomando fotos para una guía de turismo.", "Ojo con los raponeros en la 27."],
+			["Doña Carmen está desesperada: se le voló el perro.", "En el García Rovira empezó la ciudad, mijo.", "Por el pasaje de la 27 se corta camino."],
+			["Las cigarras del parque cantan más duro en la tarde.", "Al paradero de la 27 se suben los pelados a hacer piruetas.", "Esa patrulla anda preguntando por un muchacho de camiseta roja…"],
+		],
+	},
 ]
 
 ## Lo que se ve en la selección de capítulos después del último.
-const NEXT_TEASER := "Fin de la primera temporada. Repite capítulos para mejorar tus rangos y busca las 15 postales."
+const NEXT_TEASER := "Terminaste la historia hasta ahora. Repite capítulos para mejorar tus rangos, termina las misiones secundarias del Centro y busca las 19 postales y las 5 cigarras pintadas."
 
 ## Buitrago, Diaz y Gordo: [nombre, apariencia, posición relativa al punto de encuentro].
 const FRIENDS := [
@@ -154,7 +169,13 @@ const ACHIEVEMENTS := {
 	"gran_huida": {"name": "La gran huida", "text": "Termina el capítulo 5.", "xp": 200},
 	"rey_terrazas": {"name": "Rey de las terrazas", "text": "Cruza de la escalera a la oficina de El Búho en menos de 75 s sin bajar a la calle.", "xp": 200},
 	"acrobata": {"name": "Acróbata", "text": "Rueda 10 veces al caer de alto (Agacharse al aterrizar).", "xp": 100},
-	"postales_15": {"name": "Bumangués de corazón", "text": "Encuentra las 15 postales.", "xp": 400},
+	"postales_15": {"name": "Bumangués de corazón", "text": "Encuentra 15 postales.", "xp": 400},
+	# --- 2.0 ---
+	"la_cigarra": {"name": "La Cigarra", "text": "Termina el capítulo 6.", "xp": 200},
+	"buen_vecino": {"name": "Buen vecino", "text": "Termina todas las misiones secundarias del Centro.", "xp": 300},
+	"cazador_cigarras": {"name": "Cazador de cigarras", "text": "Encuentra las 5 cigarras pintadas escondidas en el Centro.", "xp": 250},
+	"postales_todas": {"name": "Guía de la ciudad", "text": "Encuentra todas las postales (19).", "xp": 300},
+	"descifrador": {"name": "Descifrador", "text": "Abre el casillero de La Cigarra sin equivocarte ni pedir pistas.", "xp": 150},
 }
 
 ## Postales coleccionables: 50 XP y $20 cada una; cada 5, un punto de habilidad.
@@ -182,14 +203,23 @@ const COLLECTIBLES := [
 	# --- Cabecera (capítulo 5) ---
 	{"id": "capital", "name": "Capital de Santander", "map": "cabecera", "position": Vector3(-23.0, 2.6, -25.0),
 		"fact": "Bucaramanga es la capital del departamento de Santander."},
-	{"id": "garcia_rovira", "name": "Parque García Rovira", "map": "cabecera", "position": Vector3(-58.0, 0.15, -4.0),
+	{"id": "garcia_rovira", "name": "Parque García Rovira", "map": "centro", "position": Vector3(-13.5, 0.15, 11.0),
 		"fact": "En el Parque García Rovira, en el centro, empezó la ciudad."},
 	{"id": "santisimo", "name": "El Santísimo", "map": "cabecera", "position": Vector3(24.0, 7.82, 9.5),
 		"fact": "En el Cerro del Santísimo, en Floridablanca, una estatua gigante mira sobre toda el área metropolitana."},
-	{"id": "casa_bolivar", "name": "Casa de Bolívar", "map": "cabecera", "position": Vector3(-44.0, 0.15, 66.0),
+	{"id": "casa_bolivar", "name": "Casa de Bolívar", "map": "centro", "position": Vector3(-48.0, 0.15, 44.8),
 		"fact": "En el centro está la Casa de Bolívar, una casona colonial donde se alojó Simón Bolívar en 1828; hoy es museo."},
 	{"id": "estadio", "name": "El Alfonso López", "map": "cabecera", "position": Vector3(30.5, 0.15, -19.5),
 		"fact": "El estadio Alfonso López es la casa del Atlético Bucaramanga."},
+	# --- El Centro (capítulo 6) ---
+	{"id": "santander", "name": "Parque Santander", "map": "centro", "position": Vector3(-44.0, 0.15, -37.0),
+		"fact": "Frente al Parque Santander está la Catedral de la Sagrada Familia, una de las iglesias más conocidas de la ciudad."},
+	{"id": "cigarras", "name": "Parque de las Cigarras", "map": "centro", "position": Vector3(55.0, 0.15, 12.0),
+		"fact": "Bucaramanga tiene parques casi en cada barrio; en los más arbolados, las cigarras cantan en las tardes calurosas."},
+	{"id": "carrera27", "name": "La Carrera 27", "map": "centro", "position": Vector3(21.0, 0.15, -30.0),
+		"fact": "La Carrera 27 es una de las avenidas más importantes de Bucaramanga: atraviesa la ciudad de norte a sur."},
+	{"id": "obleas", "name": "Obleas con arequipe", "map": "centro", "position": Vector3(-46.0, 0.15, -6.0),
+		"fact": "Las obleas con arequipe, queso o mora son el antojo de la tarde en los parques de la ciudad."},
 ]
 
 
@@ -241,4 +271,6 @@ static func create_mission(id: String, world: PrototypeWorld) -> Mission:
 			return PersecucionMission.new(world)
 		"gran_huida":
 			return GranHuidaMission.new(world)
+		"cigarra":
+			return CentroMission.new(world)
 	return EscapeMission.new(world)

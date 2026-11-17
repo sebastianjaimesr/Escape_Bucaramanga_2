@@ -1,7 +1,7 @@
 class_name EscapeUi
 extends Node
 ## Junta los paneles del escape room y decide cuál se abre: inventario (Tab),
-## pistas (H), teclado de la caja, patrón del celular y reconstrucción final.
+## pistas (H), registro de misiones (J), teclado de la caja, patrón del celular y reconstrucción final.
 ## Solo hay un panel abierto a la vez.
 
 var world: PrototypeWorld
@@ -11,6 +11,7 @@ var hints: HintPanel
 var code_lock: CodeLockPanel
 var pattern_lock: PatternLockPanel
 var deduction: DeductionPanel
+var journal: JournalPanel
 
 
 func _init(w: PrototypeWorld) -> void:
@@ -29,9 +30,11 @@ func _ready() -> void:
 	code_lock = CodeLockPanel.new(world, mission)
 	pattern_lock = PatternLockPanel.new(world, escape)
 	deduction = DeductionPanel.new(world, escape)
+	journal = JournalPanel.new(world, mission)
+	journal.toggle_action = "journal"
 	inventory.toggle_action = "inventory"
 	hints.toggle_action = "hint"
-	for p: ModalPanel in [inventory, hints, code_lock, pattern_lock, deduction]:
+	for p: ModalPanel in [inventory, hints, code_lock, pattern_lock, deduction, journal]:
 		add_child(p)
 	deduction.review_requested.connect(func() -> void:
 		inventory.open()
@@ -57,10 +60,12 @@ func open_panel(kind: String) -> void:
 			inventory.open()
 		"hints":
 			hints.open()
+		"journal":
+			journal.open()
 
 
 func any_open() -> bool:
-	for p: ModalPanel in [inventory, hints, code_lock, pattern_lock, deduction]:
+	for p: ModalPanel in [inventory, hints, code_lock, pattern_lock, deduction, journal]:
 		if p.is_open:
 			return true
 	return false
@@ -78,6 +83,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory.close()
 		else:
 			open_panel("inventory")
+	elif event.is_action_pressed("journal"):
+		get_viewport().set_input_as_handled()
+		if journal.is_open:
+			journal.close()
+		else:
+			open_panel("journal")
 	elif event.is_action_pressed("hint"):
 		get_viewport().set_input_as_handled()
 		if hints.is_open:

@@ -312,6 +312,7 @@ func _complete(step_id: String) -> void:
 		return
 	steps_done.append(step_id)
 	step_completed.emit(step_id)
+	Fx.celebrate(world, world.player.global_position)
 	PlayerProfile.add_xp(Chapters.STEP_XP, "Objetivo")
 	if step(step_id).get("checkpoint", false):
 		set_checkpoint(world.player.global_position, world.player.facing_yaw)
@@ -366,6 +367,7 @@ func _win() -> void:
 	finished = true
 	_set_police_active(false)
 	world.player.input_enabled = false
+	Fx.celebrate(world, world.player.global_position, true)
 	EventBus.mission_completed.emit()
 	if GameSession.save_enabled:
 		SaveGame.erase()
